@@ -1,211 +1,144 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Clock, HeartPulse } from "lucide-react";
+import { HeartPulse } from "lucide-react";
 import { usePayrollStore } from "@/store/usePayrollStore";
 import { STANDARD_MONTHLY_HOURS } from "@/utils/calculations";
 
 export default function EmployeeForm() {
   const {
-    employees,
-    selectedEmployeeId,
-    updateEmployee,
-    maladieHours,
-    setMaladieHours,
+    employees, selectedEmployeeId, updateEmployee,
+    maladieHours, setMaladieHours,
+    period, setPeriod,
   } = usePayrollStore();
 
   const emp = employees.find((e) => e.id === selectedEmployeeId);
-  if (!emp) {
-    return (
-      <p className="py-6 text-center text-xs text-slate-400">
-        Selectionnez ou ajoutez un salarie.
-      </p>
-    );
-  }
+  if (!emp) return null;
 
   const update = (data: Record<string, unknown>) => updateEmployee(emp.id, data);
 
   return (
     <div className="space-y-5">
-      {/* Identity */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label className="text-[11px] font-medium text-slate-500">Nom complet</Label>
+      {/* Period */}
+      <div className="flex items-end gap-3">
+        <div className="flex-1">
+          <Label className="text-[11px] text-slate-500">Periode de reference</Label>
           <Input
-            value={emp.name}
-            onChange={(e) => update({ name: e.target.value })}
-            placeholder="Jean Dupont"
-            className="mt-1 h-9 bg-slate-50/50 text-sm placeholder:text-slate-300"
+            type="month"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            className="mt-1 h-9 text-sm"
           />
         </div>
-        <div>
-          <Label className="text-[11px] font-medium text-slate-500">Matricule CCSS</Label>
-          <Input
-            value={emp.ssn}
-            onChange={(e) => update({ ssn: e.target.value })}
-            placeholder="YYYYMMDD-XXXXX"
-            className="mt-1 h-9 bg-slate-50/50 font-mono text-sm placeholder:text-slate-300"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label className="text-[11px] font-medium text-slate-500">Fonction</Label>
-          <Input
-            value={emp.role}
-            onChange={(e) => update({ role: e.target.value })}
-            placeholder="Comptable Senior"
-            className="mt-1 h-9 bg-slate-50/50 text-sm placeholder:text-slate-300"
-          />
-        </div>
-        <div>
-          <Label className="text-[11px] font-medium text-slate-500">Classe d'impot</Label>
-          <Select
-            value={emp.taxClass}
-            onValueChange={(val) => update({ taxClass: val })}
-          >
-            <SelectTrigger className="mt-1 h-9 bg-slate-50/50 text-sm">
-              <SelectValue />
-            </SelectTrigger>
+        <div className="flex-1">
+          <Label className="text-[11px] text-slate-500">Classe d'impot</Label>
+          <Select value={emp.taxClass} onValueChange={(v) => update({ taxClass: v })}>
+            <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">Classe 1 — Celibataire</SelectItem>
-              <SelectItem value="1a">Classe 1a — Veuf / Separe</SelectItem>
-              <SelectItem value="2">Classe 2 — Marie / Pacse</SelectItem>
+              <SelectItem value="1">Classe 1</SelectItem>
+              <SelectItem value="1a">Classe 1a</SelectItem>
+              <SelectItem value="2">Classe 2</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* Salary */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 text-slate-500">
-          <Clock className="h-4 w-4" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider">Remuneration</h3>
-        </div>
-
-        {/* Mode toggle */}
-        <div className="flex rounded-lg border bg-slate-50/80 p-0.5">
-          <button
-            type="button"
-            onClick={() => update({ salaryMode: "monthly" })}
-            className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
-              emp.salaryMode === "monthly"
-                ? "bg-white text-indigo-700 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            Salaire mensuel
-          </button>
-          <button
-            type="button"
-            onClick={() => update({ salaryMode: "hourly" })}
-            className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
-              emp.salaryMode === "hourly"
-                ? "bg-white text-indigo-700 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            Taux horaire
-          </button>
-        </div>
-
-        {emp.salaryMode === "monthly" ? (
-          <div>
-            <Label className="text-[11px] font-medium text-slate-500">Salaire brut mensuel</Label>
-            <div className="relative mt-1">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
-                EUR
-              </span>
-              <Input
-                type="number"
-                value={emp.monthlyGross || ""}
-                onChange={(e) => update({ monthlyGross: parseFloat(e.target.value) || 0 })}
-                placeholder="0.00"
-                className="h-11 bg-slate-50/50 pl-12 font-mono text-base font-bold text-slate-800 placeholder:text-slate-300"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-[11px] font-medium text-slate-500">Taux horaire brut</Label>
-              <div className="relative mt-1">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400">
-                  EUR/h
-                </span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={emp.hourlyRate || ""}
-                  onChange={(e) => update({ hourlyRate: parseFloat(e.target.value) || 0 })}
-                  placeholder="0.00"
-                  className="h-11 bg-slate-50/50 pl-14 font-mono text-base font-bold text-slate-800 placeholder:text-slate-300"
-                />
-              </div>
-            </div>
-            <div>
-              <Label className="text-[11px] font-medium text-slate-500">Heures travaillees</Label>
-              <div className="relative mt-1">
-                <Input
-                  type="number"
-                  value={emp.hoursWorked || ""}
-                  onChange={(e) => update({ hoursWorked: parseFloat(e.target.value) || 0 })}
-                  placeholder={String(STANDARD_MONTHLY_HOURS)}
-                  className="h-11 bg-slate-50/50 pr-8 font-mono text-base font-bold text-slate-800 placeholder:text-slate-300"
-                />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">h</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {emp.salaryMode === "hourly" && emp.hourlyRate > 0 && emp.hoursWorked > 0 && (
-          <div className="flex items-center justify-between rounded-lg bg-indigo-50/60 px-3 py-2 text-xs">
-            <span className="text-indigo-600">Brut mensuel calcule</span>
-            <span className="font-mono font-bold text-indigo-700">
-              {(emp.hourlyRate * emp.hoursWorked).toFixed(2)} EUR
-            </span>
-          </div>
-        )}
-      </section>
-
-      {/* Maladie */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 text-slate-500">
-          <HeartPulse className="h-4 w-4" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider">Absences maladie</h3>
+      {/* Identity row */}
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <Label className="text-[11px] text-slate-500">Nom complet</Label>
+          <Input value={emp.name} onChange={(e) => update({ name: e.target.value })} placeholder="Jean Dupont" className="mt-1 h-9 text-sm" />
         </div>
         <div>
-          <Label className="text-[11px] font-medium text-slate-500">Heures maladie</Label>
-          <div className="relative mt-1">
-            <Input
-              type="number"
-              min={0}
-              value={maladieHours || ""}
-              onChange={(e) => setMaladieHours(parseFloat(e.target.value) || 0)}
-              placeholder="0"
-              className="h-9 bg-slate-50/50 pr-8 font-mono text-sm placeholder:text-slate-300"
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">h</span>
-          </div>
-          <p className="mt-1 text-[10px] text-slate-400">
-            Maintien a 100 % les 77 premiers jours.
-          </p>
-          {maladieHours > 0 && (
-            <div className="mt-2 flex items-center gap-2 rounded-md bg-amber-50 px-3 py-1.5 text-[11px] text-amber-700">
-              <HeartPulse className="h-3 w-3" />
-              {maladieHours}h &mdash; {(maladieHours / 8).toFixed(1)} jour(s)
-            </div>
-          )}
+          <Label className="text-[11px] text-slate-500">Fonction</Label>
+          <Input value={emp.role} onChange={(e) => update({ role: e.target.value })} placeholder="Comptable" className="mt-1 h-9 text-sm" />
         </div>
-      </section>
+        <div>
+          <Label className="text-[11px] text-slate-500">Matricule</Label>
+          <Input value={emp.ssn} onChange={(e) => update({ ssn: e.target.value })} placeholder="19850315-XXX" className="mt-1 h-9 font-mono text-sm" />
+        </div>
+      </div>
+
+      {/* Salary mode */}
+      <div>
+        <Label className="text-[11px] text-slate-500">Mode de remuneration</Label>
+        <div className="mt-1 flex rounded-lg bg-slate-100 p-0.5">
+          {(["monthly", "hourly"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => update({ salaryMode: mode })}
+              className={`flex-1 rounded-md py-2 text-xs font-semibold transition-all ${
+                emp.salaryMode === mode
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {mode === "monthly" ? "Mensuel" : "Horaire"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Salary inputs */}
+      {emp.salaryMode === "monthly" ? (
+        <div>
+          <Label className="text-[11px] text-slate-500">Salaire brut mensuel</Label>
+          <div className="relative mt-1">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">EUR</span>
+            <Input
+              type="number" step="0.01"
+              value={emp.monthlyGross || ""}
+              onChange={(e) => update({ monthlyGross: parseFloat(e.target.value) || 0 })}
+              placeholder="0.00"
+              className="h-12 pl-12 font-mono text-lg font-bold text-slate-800"
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-[11px] text-slate-500">Taux horaire</Label>
+            <div className="relative mt-1">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">EUR/h</span>
+              <Input type="number" step="0.01" value={emp.hourlyRate || ""} onChange={(e) => update({ hourlyRate: parseFloat(e.target.value) || 0 })} placeholder="0.00" className="h-12 pl-14 font-mono text-lg font-bold text-slate-800" />
+            </div>
+          </div>
+          <div>
+            <Label className="text-[11px] text-slate-500">Heures / mois</Label>
+            <div className="relative mt-1">
+              <Input type="number" value={emp.hoursWorked || ""} onChange={(e) => update({ hoursWorked: parseFloat(e.target.value) || 0 })} placeholder={String(STANDARD_MONTHLY_HOURS)} className="h-12 pr-8 font-mono text-lg font-bold text-slate-800" />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">h</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {emp.salaryMode === "hourly" && emp.hourlyRate > 0 && emp.hoursWorked > 0 && (
+        <div className="flex items-center justify-between rounded-xl bg-indigo-50 px-4 py-2.5 text-xs">
+          <span className="font-medium text-indigo-600">Brut mensuel calcule</span>
+          <span className="font-mono text-sm font-bold text-indigo-700">{(emp.hourlyRate * emp.hoursWorked).toFixed(2)} EUR</span>
+        </div>
+      )}
+
+      {/* Maladie */}
+      <div className="rounded-xl bg-amber-50/50 p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <HeartPulse className="h-4 w-4 text-amber-500" />
+          <Label className="text-[11px] font-semibold text-amber-700">Absences maladie</Label>
+        </div>
+        <div className="relative">
+          <Input type="number" min={0} value={maladieHours || ""} onChange={(e) => setMaladieHours(parseFloat(e.target.value) || 0)} placeholder="0" className="h-9 pr-8 font-mono text-sm border-amber-200 bg-white" />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-amber-400">h</span>
+        </div>
+        {maladieHours > 0 && (
+          <p className="mt-1.5 text-[11px] text-amber-600">
+            {maladieHours}h = {(maladieHours / 8).toFixed(1)} jour(s) — maintien 100 % employeur
+          </p>
+        )}
+      </div>
     </div>
   );
 }

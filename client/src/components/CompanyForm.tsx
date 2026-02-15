@@ -1,58 +1,27 @@
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Building2 } from "lucide-react";
 import { usePayrollStore } from "@/store/usePayrollStore";
 
 export default function CompanyForm() {
   const { company, setCompany } = usePayrollStore();
 
+  const fields = [
+    { key: "name" as const, label: "Raison sociale", placeholder: "LuxCorp S.A." },
+    { key: "address" as const, label: "Adresse", placeholder: "2, Rue du Fort Thungen, L-1499" },
+    { key: "tva" as const, label: "N° TVA", placeholder: "LU12345678", mono: true },
+  ];
+
   return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-2 text-slate-500">
-        <Building2 className="h-4 w-4" />
-        <h3 className="text-xs font-semibold uppercase tracking-wider">Employeur</h3>
-      </div>
-
-      <div className="grid gap-3">
-        <div>
-          <Label htmlFor="companyName" className="text-[11px] font-medium text-slate-500">
-            Raison sociale
-          </Label>
-          <Input
-            id="companyName"
-            value={company.name}
-            onChange={(e) => setCompany({ name: e.target.value })}
-            placeholder="Ex: LuxCorp S.A."
-            className="mt-1 h-9 bg-slate-50/50 text-sm placeholder:text-slate-300"
+    <div className="space-y-2">
+      {fields.map((f) => (
+        <div key={f.key}>
+          <label className="text-[10px] font-medium text-slate-500">{f.label}</label>
+          <input
+            value={company[f.key]}
+            onChange={(e) => setCompany({ [f.key]: e.target.value })}
+            placeholder={f.placeholder}
+            className={`mt-0.5 block w-full rounded-md border-0 bg-white/5 px-2.5 py-1.5 text-[12px] text-slate-200 ring-1 ring-inset ring-white/10 placeholder:text-slate-600 focus:ring-2 focus:ring-indigo-500 ${f.mono ? "font-mono" : ""}`}
           />
         </div>
-
-        <div>
-          <Label htmlFor="companyAddress" className="text-[11px] font-medium text-slate-500">
-            Adresse
-          </Label>
-          <Input
-            id="companyAddress"
-            value={company.address}
-            onChange={(e) => setCompany({ address: e.target.value })}
-            placeholder="2, Rue du Fort Thüngen, L-1499 Luxembourg"
-            className="mt-1 h-9 bg-slate-50/50 text-sm placeholder:text-slate-300"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="companyTva" className="text-[11px] font-medium text-slate-500">
-            N° TVA / Matricule
-          </Label>
-          <Input
-            id="companyTva"
-            value={company.tva}
-            onChange={(e) => setCompany({ tva: e.target.value })}
-            placeholder="LU12345678"
-            className="mt-1 h-9 bg-slate-50/50 font-mono text-sm placeholder:text-slate-300"
-          />
-        </div>
-      </div>
-    </section>
+      ))}
+    </div>
   );
 }

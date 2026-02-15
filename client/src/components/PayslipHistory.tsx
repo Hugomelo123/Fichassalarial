@@ -1,148 +1,101 @@
 import { usePayrollStore, type SavedPayslip } from "@/store/usePayrollStore";
-import { Button } from "@/components/ui/button";
-import { FileText, Trash2, Calendar, ArrowLeft } from "lucide-react";
+import { Trash2, Calendar, FileText, User } from "lucide-react";
 
-const MONTHS: Record<string, string> = {
-  "01": "Jan", "02": "Fev", "03": "Mar", "04": "Avr",
-  "05": "Mai", "06": "Jun", "07": "Jul", "08": "Aou",
-  "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dec",
+const MO: Record<string, string> = {
+  "01":"Jan","02":"Fev","03":"Mar","04":"Avr","05":"Mai","06":"Jun",
+  "07":"Jul","08":"Aou","09":"Sep","10":"Oct","11":"Nov","12":"Dec",
 };
 
-function formatPeriod(period: string): string {
-  const [year, month] = period.split("-");
-  return `${MONTHS[month] || month} ${year}`;
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("fr-LU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+function fmtP(p: string) { const [y, m] = p.split("-"); return `${MO[m]||m} ${y}`; }
+function fmtD(iso: string) { return new Date(iso).toLocaleDateString("fr-LU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}); }
 
 export default function PayslipHistory() {
-  const { payslips, deletePayslip, employees, setView } = usePayrollStore();
+  const { payslips, deletePayslip, employees, selectEmployee, setView } = usePayrollStore();
 
   // Group by employee
-  const grouped = payslips.reduce<Record<string, SavedPayslip[]>>((acc, p) => {
-    const key = p.employeeId;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(p);
-    return acc;
+  const grouped = payslips.reduce<Record<string, SavedPayslip[]>>((a, p) => {
+    (a[p.employeeId] ||= []).push(p);
+    return a;
   }, {});
 
-  const employeeIds = Object.keys(grouped);
+  const goToEmployee = (empId: string) => {
+    const emp = employees.find(e => e.id === empId);
+    if (emp) { selectEmployee(emp.id); setView("simulator"); }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">
-            Historique des fiches
-          </h2>
-          <p className="text-xs text-slate-400">
-            {payslips.length} fiche{payslips.length !== 1 ? "s" : ""} enregistree{payslips.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setView("simulator")}
-          className="h-8 gap-1.5 text-xs"
-        >
-          <ArrowLeft className="h-3 w-3" />
-          Simulateur
-        </Button>
+      <div>
+        <h1 className="text-xl font-bold text-slate-900">Fiches de paie</h1>
+        <p className="text-sm text-slate-400">{payslips.length} fiche{payslips.length !== 1 ? "s" : ""} sauvegardee{payslips.length !== 1 ? "s" : ""}</p>
       </div>
 
       {payslips.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 py-16 text-center">
-          <FileText className="mb-3 h-10 w-10 text-slate-200" />
-          <p className="text-sm text-slate-400">Aucune fiche sauvegardee.</p>
-          <p className="mt-1 text-xs text-slate-300">
-            Generez une fiche dans le simulateur puis cliquez "Sauvegarder".
-          </p>
+        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-white py-20 text-center">
+          <FileText className="mb-3 h-12 w-12 text-slate-200" />
+          <p className="text-sm font-medium text-slate-500">Aucune fiche sauvegardee</p>
+          <p className="mt-1 text-xs text-slate-400">Generez une fiche dans le simulateur puis cliquez "Sauvegarder".</p>
+          <button onClick={() => setView("simulator")} className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors">
+            Ouvrir le simulateur
+          </button>
         </div>
       ) : (
-        <div className="space-y-6">
-          {employeeIds.map((empId) => {
-            const emp = employees.find((e) => e.id === empId);
-            const slips = grouped[empId];
-            return (
-              <div key={empId} className="rounded-xl border bg-white shadow-sm">
-                {/* Employee header */}
-                <div className="flex items-center gap-3 border-b bg-slate-50/60 px-4 py-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600">
+        Object.entries(grouped).map(([empId, slips]) => {
+          const emp = employees.find(e => e.id === empId);
+          const total = slips.reduce((s, p) => s + p.net, 0);
+          return (
+            <div key={empId} className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+              {/* Employee header */}
+              <div className="flex items-center justify-between bg-slate-50 px-5 py-3 border-b border-slate-100">
+                <button onClick={() => goToEmployee(empId)} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600">
                     {(emp?.name || slips[0]?.employeeName || "?").charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {emp?.name || slips[0]?.employeeName || "Employe supprime"}
-                    </p>
-                    <p className="text-[10px] text-slate-400">
-                      {slips.length} fiche{slips.length !== 1 ? "s" : ""}
-                    </p>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-slate-800">{emp?.name || slips[0]?.employeeName}</p>
+                    <p className="text-[10px] text-slate-400">{slips.length} fiche{slips.length > 1 ? "s" : ""} · Net total: {total.toLocaleString("fr-LU",{minimumFractionDigits:2})} EUR</p>
                   </div>
-                </div>
+                </button>
+                <button onClick={() => goToEmployee(empId)} className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800">
+                  <User className="h-3 w-3" /> Voir salarie
+                </button>
+              </div>
 
-                {/* Payslip list */}
-                <div className="divide-y divide-slate-100">
-                  {slips.map((slip) => (
-                    <div
-                      key={slip.id}
-                      className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-slate-50/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
-                          <Calendar className="h-4 w-4 text-blue-500" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-700">
-                            {formatPeriod(slip.period)}
-                          </p>
-                          <p className="text-[10px] text-slate-400">
-                            Cree le {formatDate(slip.createdAt)}
-                            {slip.maladieHours > 0 && (
-                              <span className="ml-2 text-amber-500">
-                                · {slip.maladieHours}h maladie
-                              </span>
-                            )}
-                          </p>
-                        </div>
+              {/* Payslips */}
+              <div className="divide-y divide-slate-50">
+                {slips.map((slip) => (
+                  <div key={slip.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 ring-1 ring-blue-100">
+                        <Calendar className="h-4 w-4 text-blue-500" />
                       </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-[10px] text-slate-400">Brut</p>
-                          <p className="font-mono text-xs text-slate-600">
-                            {slip.salaryBrut.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] text-emerald-500">Net</p>
-                          <p className="font-mono text-sm font-bold text-emerald-700">
-                            {slip.net.toFixed(2)}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => deletePayslip(slip.id)}
-                          className="rounded p-1.5 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">{fmtP(slip.period)}</p>
+                        <p className="text-[10px] text-slate-400">
+                          {fmtD(slip.createdAt)}
+                          {slip.maladieHours > 0 && <span className="ml-2 text-amber-500">· {slip.maladieHours}h maladie</span>}
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex items-center gap-5">
+                      <div className="text-right">
+                        <p className="text-[9px] uppercase text-slate-400">Brut</p>
+                        <p className="font-mono text-xs text-slate-500">{slip.salaryBrut.toFixed(2)}</p>
+                      </div>
+                      <div className="text-right min-w-[80px]">
+                        <p className="text-[9px] uppercase text-emerald-500">Net</p>
+                        <p className="font-mono text-sm font-bold text-emerald-700">{slip.net.toFixed(2)}</p>
+                      </div>
+                      <button onClick={() => deletePayslip(slip.id)} className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })
       )}
     </div>
   );

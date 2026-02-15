@@ -1,45 +1,29 @@
 import { usePayrollStore } from "@/store/usePayrollStore";
-import { CalendarDays } from "lucide-react";
 
 export default function AnnualSummary() {
   const { results } = usePayrollStore();
-
   if (!results || results.salaryBrut === 0) return null;
 
-  const annual = {
-    brut: results.salaryBrut * 12,
-    social: results.totalSocial * 12,
-    tax: results.impots * 12,
-    net: results.net * 12,
-  };
-
   const items = [
-    { label: "Brut annuel", value: annual.brut, cls: "text-slate-800" },
-    { label: "Cotisations", value: -annual.social, cls: "text-red-500" },
-    { label: "Impots", value: -annual.tax, cls: "text-red-500" },
-    { label: "Net annuel", value: annual.net, cls: "text-emerald-700 font-bold" },
+    { label: "Brut annuel", value: results.salaryBrut * 12, color: "text-slate-900" },
+    { label: "Cotisations", value: -(results.totalSocial * 12), color: "text-red-500" },
+    { label: "Impots", value: -(results.impots * 12), color: "text-orange-500" },
+    { label: "Net annuel", value: results.net * 12, color: "text-emerald-700 font-bold" },
   ];
 
   return (
-    <div className="rounded-xl border bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center gap-2">
-        <CalendarDays className="h-4 w-4 text-slate-400" />
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Projection annuelle (x12)
-        </h3>
-      </div>
-
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+      <h3 className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <div className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+        Projection annuelle (x12)
+      </h3>
       <div className="grid grid-cols-4 gap-3">
-        {items.map((item) => (
-          <div key={item.label} className="rounded-lg bg-slate-50 p-3 text-center">
-            <p className="text-[10px] text-slate-400">{item.label}</p>
-            <p className={`mt-1 font-mono text-sm ${item.cls}`}>
-              {item.value < 0 && "- "}
-              {Math.abs(item.value).toLocaleString("fr-LU", {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0,
-              })}
-              <span className="ml-0.5 text-[10px] font-normal text-slate-400">EUR</span>
+        {items.map((it) => (
+          <div key={it.label} className="rounded-xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
+            <p className="text-[9px] font-medium uppercase text-slate-400">{it.label}</p>
+            <p className={`mt-1 font-mono text-sm ${it.color}`}>
+              {it.value < 0 ? "- " : ""}{Math.abs(it.value).toLocaleString("fr-LU", { maximumFractionDigits: 0 })}
+              <span className="ml-0.5 text-[9px] font-normal text-slate-300">EUR</span>
             </p>
           </div>
         ))}
