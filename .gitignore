@@ -1,6 +1,42 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*.local
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Replit
+.local/
+.replit
+replit.nix
+.cache/
+generated-icon.png
+attached_assets/
+vite-plugin-meta-images.ts
+
+# Build artifacts
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Logs
+*.log
+npm-debug.log*
+
+# Misc
+*.tsbuildinfo

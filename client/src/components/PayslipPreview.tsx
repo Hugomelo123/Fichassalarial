@@ -115,7 +115,7 @@ export default function PayslipPreview() {
                 <div className="col-span-2 text-center text-slate-400">{salaryBrut.toFixed(2)}</div>
                 <div className="col-span-2 text-center text-slate-500">2.80%</div>
                 <div className="col-span-2 text-right pr-4 text-red-500 font-mono">
-                  - {((results.cotisations * 0.028 / 0.1105)).toFixed(2)}
+                  - {(salaryBrut * 0.028).toFixed(2)}
                 </div>
               </div>
               
@@ -127,7 +127,7 @@ export default function PayslipPreview() {
                 <div className="col-span-2 text-center text-slate-400">{salaryBrut.toFixed(2)}</div>
                 <div className="col-span-2 text-center text-slate-500">0.25%</div>
                 <div className="col-span-2 text-right pr-4 text-red-500 font-mono">
-                  - {((results.cotisations * 0.0025 / 0.1105)).toFixed(2)}
+                  - {(salaryBrut * 0.0025).toFixed(2)}
                 </div>
               </div>
 
@@ -139,7 +139,7 @@ export default function PayslipPreview() {
                 <div className="col-span-2 text-center text-slate-400">{salaryBrut.toFixed(2)}</div>
                 <div className="col-span-2 text-center text-slate-500">8.00%</div>
                 <div className="col-span-2 text-right pr-4 text-red-500 font-mono">
-                  - {((results.cotisations * 0.08 / 0.1105)).toFixed(2)}
+                  - {(salaryBrut * 0.08).toFixed(2)}
                 </div>
               </div>
 

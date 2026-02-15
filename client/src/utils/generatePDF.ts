@@ -20,6 +20,14 @@ export const generatePayslipPDF = (
 ) => {
   const doc = new jsPDF();
   
+  // Recalculate gross from results
+  const salaryBrut = results.totalImposable + results.totalSocial;
+
+  // Individual contribution rates
+  const maladieSoins = salaryBrut * 0.028;
+  const maladieEspeces = salaryBrut * 0.0025;
+  const pension = salaryBrut * 0.08;
+
   // Colors
   const darkBlue = "#1e3a8a";
   const gray = "#6b7280";
@@ -66,7 +74,7 @@ export const generatePayslipPDF = (
   // Gross Salary
   doc.setFont("helvetica", "normal");
   doc.text("Salaire de base", 20, y);
-  doc.text(`€ ${results.totalImposable + results.totalSocial}`, 160, y, { align: "right" }); // Approximate gross back calc
+  doc.text(`€ ${salaryBrut.toFixed(2)}`, 160, y, { align: "right" });
   y += 10;
 
   // Social Contributions
@@ -79,12 +87,17 @@ export const generatePayslipPDF = (
   
   doc.text("Assurance Maladie / Soins", 25, y);
   doc.text("2.80%", 100, y);
-  doc.text(`- € ${(results.totalSocial - results.dependance - (results.cotisations * 0.0025/0.1105)).toFixed(2)}`, 160, y, { align: "right" }); // Rough breakdown
+  doc.text(`- € ${maladieSoins.toFixed(2)}`, 160, y, { align: "right" });
+  y += 6;
+
+  doc.text("Assurance Maladie (Espèces)", 25, y);
+  doc.text("0.25%", 100, y);
+  doc.text(`- € ${maladieEspeces.toFixed(2)}`, 160, y, { align: "right" });
   y += 6;
   
   doc.text("Assurance Pension", 25, y);
   doc.text("8.00%", 100, y);
-  doc.text(`- € ${(results.cotisations * 0.08 / 0.1105).toFixed(2)}`, 160, y, { align: "right" });
+  doc.text(`- € ${pension.toFixed(2)}`, 160, y, { align: "right" });
   y += 6;
 
   doc.text("Assurance Dépendance", 25, y);
@@ -109,7 +122,7 @@ export const generatePayslipPDF = (
   y += 15;
 
   // Net Result
-  doc.setFillColor(240, 248, 255); // light blue bg
+  doc.setFillColor(240, 248, 255);
   doc.rect(15, y - 5, 180, 15, "F");
   
   doc.setFontSize(12);
