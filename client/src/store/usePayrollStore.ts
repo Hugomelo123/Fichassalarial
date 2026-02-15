@@ -3,7 +3,8 @@ import { persist } from "zustand/middleware";
 import {
   calculateLuxSalary,
   defaultCIS,
-  LUX,
+  getYearParams,
+  RATES,
   type PayrollInput,
   type PayrollResult,
 } from "../utils/calculations";
@@ -112,7 +113,14 @@ function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-function createEmptyEmployee(name?: string): Employee {
+function getYearFromPeriod(period: string): number {
+  const y = parseInt(period.split("-")[0], 10);
+  return isNaN(y) ? 2025 : y;
+}
+
+function createEmptyEmployee(name?: string, year?: number): Employee {
+  const y = year || 2025;
+  const p = getYearParams(y);
   return {
     id: uid(),
     name: name || "",
@@ -125,7 +133,7 @@ function createEmptyEmployee(name?: string): Employee {
     salaryMode: "monthly",
     monthlyGross: 0,
     hourlyRate: 0,
-    hoursWorked: LUX.standardMonthlyHours,
+    hoursWorked: RATES.standardMonthlyHours,
     degreeOccupation: 40,
     overtimeHours: 0,
     overtimeRate: 1.4,
@@ -133,12 +141,12 @@ function createEmptyEmployee(name?: string): Employee {
     chequesRepas: 0,
     autresAvantages: 0,
     autresDeductions: 0,
-    CIS: defaultCIS("1"),
+    CIS: defaultCIS("1", y),
     CIP: 0,
     CIM: 0,
     CISSM: 0,
     CICO2: 0,
-    index: LUX.index,
+    index: p.index,
     congesAnnuels: 208, // 26 days * 8h
     congesPris: 0,
     feriados: 0,
@@ -148,7 +156,7 @@ function createEmptyEmployee(name?: string): Employee {
   };
 }
 
-function buildInput(emp: Employee, maladieHours: number): PayrollInput {
+function buildInput(emp: Employee, maladieHours: number, year: number): PayrollInput {
   return {
     salaryMode: emp.salaryMode,
     monthlyGross: emp.monthlyGross,
@@ -168,12 +176,14 @@ function buildInput(emp: Employee, maladieHours: number): PayrollInput {
     autresAvantages: emp.autresAvantages,
     autresDeductions: emp.autresDeductions,
     index: emp.index,
+    year,
   };
 }
 
-function calcForEmployee(emp: Employee | undefined, maladieHours: number): PayrollResult | null {
+function calcForEmployee(emp: Employee | undefined, maladieHours: number, period: string): PayrollResult | null {
   if (!emp) return null;
-  const input = buildInput(emp, maladieHours);
+  const year = getYearFromPeriod(period);
+  const input = buildInput(emp, maladieHours, year);
   const hasSalary =
     emp.salaryMode === "monthly" ? emp.monthlyGross > 0 : emp.hourlyRate > 0 && emp.hoursWorked > 0;
   if (!hasSalary) return null;
@@ -195,7 +205,8 @@ export const usePayrollStore = create<PayrollState>()(
       selectedEmployeeId: null,
 
       addEmployee: (name) => {
-        const emp = createEmptyEmployee(name);
+        const year = getYearFromPeriod(get().period);
+        const emp = createEmptyEmployee(name, year);
         const employees = [...get().employees, emp];
         set({ employees, selectedEmployeeId: emp.id, results: null, maladieHours: 0 });
       },
@@ -209,7 +220,7 @@ export const usePayrollStore = create<PayrollState>()(
         set({
           employees,
           selectedEmployeeId: sel,
-          results: calcForEmployee(emp, 0),
+          results: calcForEmployee(emp, 0, get().period),
           maladieHours: 0,
         });
       },
@@ -219,7 +230,7 @@ export const usePayrollStore = create<PayrollState>()(
         set({
           selectedEmployeeId: id,
           maladieHours: 0,
-          results: calcForEmployee(emp, 0),
+          results: calcForEmployee(emp, 0, get().period),
         });
       },
 
@@ -230,7 +241,7 @@ export const usePayrollStore = create<PayrollState>()(
         set({ employees });
         if (get().selectedEmployeeId === id) {
           const emp = employees.find((e) => e.id === id);
-          set({ results: calcForEmployee(emp, get().maladieHours) });
+          set({ results: calcForEmployee(emp, get().maladieHours, get().period) });
         }
       },
 
@@ -238,7 +249,7 @@ export const usePayrollStore = create<PayrollState>()(
       setMaladieHours: (maladieHours) => {
         set({ maladieHours });
         const emp = get().employees.find((e) => e.id === get().selectedEmployeeId);
-        set({ results: calcForEmployee(emp, maladieHours) });
+        set({ results: calcForEmployee(emp, maladieHours, get().period) });
       },
 
       period: "2026-02",
@@ -247,7 +258,7 @@ export const usePayrollStore = create<PayrollState>()(
       results: null,
       recalculate: () => {
         const emp = get().employees.find((e) => e.id === get().selectedEmployeeId);
-        set({ results: calcForEmployee(emp, get().maladieHours) });
+        set({ results: calcForEmployee(emp, get().maladieHours, get().period) });
       },
 
       payslips: [],
@@ -278,7 +289,7 @@ export const usePayrollStore = create<PayrollState>()(
     }),
     {
       name: "luxpayroll-store",
-      version: 5, // bumped for progressive tax brackets
+      version: 6, // bumped for year-based params + FO/DS deductions
     },
   ),
 );

@@ -1,44 +1,89 @@
 /**
- * Luxembourg Payroll Engine — 2026
+ * Luxembourg Payroll Engine
  * Progressive tax brackets (barème RTS) + solidarity surcharge
- * Based on CCSS / Administration des Contributions Directes rates.
+ * Year-based parameters (SSM, index, CIS, forfaits).
+ * Based on CCSS / Administration des Contributions Directes.
  */
 
 /* ══════════════════════════════════════════
-   LUXEMBOURG 2026 PARAMETERS
+   YEAR-BASED PARAMETERS
    ══════════════════════════════════════════ */
 
-export const LUX = {
-  index: 955.99,
-  ssmNonQualifie: 2570.93,
-  ssmQualifie: 3085.11,
+export interface YearParams {
+  index: number;
+  ssmNonQualifie: number;
+  ssmQualifie: number;
+  cisDefault: number;       // CIS mensuel par défaut (classe 1/1a)
+  foMensuel: number;        // Frais d'obtention forfaitaire (mensuel)
+  dsMensuel: number;        // Dépenses spéciales minimum (mensuel)
+  monoparentalMensuel: number; // Abattement monoparental (classe 1a, mensuel)
+  baremeCredit1: number;    // Crédit barème classe 1 (mensuel)
+}
 
-  // Social contributions (part salariale)
+const YEAR_PARAMS: Record<number, YearParams> = {
+  2024: {
+    index: 944.43,
+    ssmNonQualifie: 2570.93,
+    ssmQualifie: 3085.11,
+    cisDefault: 46,
+    foMensuel: 45,
+    dsMensuel: 40,
+    monoparentalMensuel: 62.50,
+    baremeCredit1: 29,
+  },
+  2025: {
+    index: 968.04,
+    ssmNonQualifie: 2703.72,
+    ssmQualifie: 3244.47,
+    cisDefault: 50,
+    foMensuel: 45,
+    dsMensuel: 40,
+    monoparentalMensuel: 62.50,
+    baremeCredit1: 29,
+  },
+  2026: {
+    index: 987.78,
+    ssmNonQualifie: 2771.31,
+    ssmQualifie: 3325.58,
+    cisDefault: 58,
+    foMensuel: 45,
+    dsMensuel: 40,
+    monoparentalMensuel: 62.50,
+    baremeCredit1: 29,
+  },
+};
+
+export function getYearParams(year: number): YearParams {
+  return YEAR_PARAMS[year] || YEAR_PARAMS[2025];
+}
+
+export function availableYears(): number[] {
+  return Object.keys(YEAR_PARAMS).map(Number).sort();
+}
+
+/* ══════════════════════════════════════════
+   FIXED RATES (same across years)
+   ══════════════════════════════════════════ */
+
+export const RATES = {
   maladieSoins: 0.028,
   maladieEspeces: 0.0025,
   pension: 0.08,
   dependance: 0.014,
-  dependanceAbatement: 2570.93 / 4, // ~642.73
-
   standardWeeklyHours: 40,
   standardMonthlyHours: 176,
-
-  cisDefault: 58,
-
-  // Solidarity surcharge threshold (monthly)
   solidarityThreshold: 12500, // monthly taxable above this → 9%, below → 7%
 };
 
 /* ══════════════════════════════════════════
-   TAX BRACKETS — Barème RTS mensuel 2026
-   Each entry: { max, rate }
-   Tax is progressive: each slice taxed at its rate.
+   TAX BRACKETS — Barème progressif mensuel
+   Same brackets for ALL classes.
+   Differences come from deductions & credits.
    ══════════════════════════════════════════ */
 
 type Bracket = { max: number; rate: number };
 
-/** Classe 1 — Célibataire */
-const BRACKETS_CL1: Bracket[] = [
+const BRACKETS: Bracket[] = [
   { max: 1036,     rate: 0 },
   { max: 1100,     rate: 0.08 },
   { max: 1283,     rate: 0.09 },
@@ -64,91 +109,80 @@ const BRACKETS_CL1: Bracket[] = [
   { max: Infinity, rate: 0.42 },
 ];
 
-/** Classe 1a — Monoparental / veuf(ve) / 65+ */
-const BRACKETS_CL1A: Bracket[] = [
-  { max: 1370,     rate: 0 },
-  { max: 1434,     rate: 0.08 },
-  { max: 1617,     rate: 0.09 },
-  { max: 1800,     rate: 0.10 },
-  { max: 1983,     rate: 0.11 },
-  { max: 2167,     rate: 0.12 },
-  { max: 2350,     rate: 0.14 },
-  { max: 2533,     rate: 0.16 },
-  { max: 2717,     rate: 0.18 },
-  { max: 2900,     rate: 0.20 },
-  { max: 3083,     rate: 0.22 },
-  { max: 3267,     rate: 0.24 },
-  { max: 3450,     rate: 0.26 },
-  { max: 3633,     rate: 0.28 },
-  { max: 3817,     rate: 0.30 },
-  { max: 4000,     rate: 0.32 },
-  { max: 4183,     rate: 0.34 },
-  { max: 4367,     rate: 0.36 },
-  { max: 4550,     rate: 0.38 },
-  { max: 4733,     rate: 0.39 },
-  { max: 9534,     rate: 0.40 },
-  { max: 14133,    rate: 0.41 },
-  { max: Infinity, rate: 0.42 },
-];
-
 /* ══════════════════════════════════════════
    PROGRESSIVE TAX CALCULATION
    ══════════════════════════════════════════ */
 
-function applyBrackets(monthlyTaxable: number, brackets: Bracket[]): number {
+function applyBrackets(monthlyTaxable: number): number {
   let tax = 0;
   let prev = 0;
-
-  for (const b of brackets) {
+  for (const b of BRACKETS) {
     if (monthlyTaxable <= prev) break;
     const slice = Math.min(monthlyTaxable, b.max) - prev;
-    if (slice > 0) {
-      tax += slice * b.rate;
-    }
+    if (slice > 0) tax += slice * b.rate;
     prev = b.max;
   }
-
   return tax;
 }
 
 /**
  * Calculate tax using Luxembourg progressive barème.
  *
- * Class 2: Splitting method — divide income by 2, apply class 1 brackets, multiply by 2.
- * Class 1a: Separate brackets + barème credit min(30, total * 0.35).
- * Class 1: Standard brackets.
+ * Flow:
+ * 1. Subtract forfait deductions (FO + DS) from taxable base
+ *    - Class 1a: also subtract monoparental abattement
+ * 2. Apply progressive brackets
+ *    - Class 2: Splitting (÷2, brackets, ×2)
+ * 3. Add solidarity surcharge (7% or 9%)
+ * 4. Subtract class-specific barème credit
+ * 5. = Impôt (before external credits CIS/CIP/CIM/CISSM/CICO2)
  */
 function calculateTax(
   monthlyTaxable: number,
   taxClass: string,
+  params: YearParams,
 ): { baseTax: number; solidarity: number; baremeCredit: number; impots: number } {
-  let baseTax: number;
 
+  // ── 1. Forfait deductions (built into barème) ──
+  let deductions = params.foMensuel + params.dsMensuel;
+  if (taxClass === "1a") {
+    deductions += params.monoparentalMensuel;
+  }
+  const taxableAfterForfaits = Math.max(0, monthlyTaxable - deductions);
+
+  // ── 2. Progressive brackets ──
+  let baseTax: number;
   if (taxClass === "2") {
-    // Splitting: divide by 2, apply class 1 brackets, multiply by 2
-    const half = monthlyTaxable / 2;
-    baseTax = applyBrackets(half, BRACKETS_CL1) * 2;
-  } else if (taxClass === "1a") {
-    baseTax = applyBrackets(monthlyTaxable, BRACKETS_CL1A);
+    const half = taxableAfterForfaits / 2;
+    baseTax = applyBrackets(half) * 2;
   } else {
-    baseTax = applyBrackets(monthlyTaxable, BRACKETS_CL1);
+    baseTax = applyBrackets(taxableAfterForfaits);
   }
 
-  // Solidarity surcharge (contribution au fonds pour l'emploi)
-  const solidarityRate = monthlyTaxable > LUX.solidarityThreshold ? 0.09 : 0.07;
+  // ── 3. Solidarity surcharge ──
+  const solidarityRate = monthlyTaxable > RATES.solidarityThreshold ? 0.09 : 0.07;
   const solidarity = baseTax * solidarityRate;
   const totalBrut = baseTax + solidarity;
 
-  // Barème-internal credit (class-specific)
+  // ── 4. Barème credit (class-specific) ──
   let baremeCredit = 0;
   if (taxClass === "1a") {
     baremeCredit = Math.min(30, totalBrut * 0.35);
+  } else if (taxClass === "2") {
+    baremeCredit = params.baremeCredit1 * 2; // double for splitting
+  } else {
+    baremeCredit = params.baremeCredit1;
   }
-  // Class 2 moderation built into splitting already
 
+  // ── 5. Impôt ──
   const impots = Math.max(0, totalBrut - baremeCredit);
 
-  return { baseTax: round(baseTax), solidarity: round(solidarity), baremeCredit: round(baremeCredit), impots: round(impots) };
+  return {
+    baseTax: round(baseTax),
+    solidarity: round(solidarity),
+    baremeCredit: round(baremeCredit),
+    impots: round(impots),
+  };
 }
 
 /* ══════════════════════════════════════════
@@ -167,7 +201,6 @@ export interface PayrollInput {
 
   taxClass: string;
 
-  // Fiscal credits (monthly, shown separately on payslip)
   CIS: number;
   CIP: number;
   CIM: number;
@@ -180,6 +213,7 @@ export interface PayrollInput {
   autresDeductions: number;
 
   index: number;
+  year: number; // NEW: determines which YearParams to use
 }
 
 export interface PayrollResult {
@@ -205,13 +239,11 @@ export interface PayrollResult {
 
   totalImposable: number;
 
-  // Tax (progressive)
-  baseTaxBrackets: number;  // raw bracket tax (before solidarity/credits)
-  solidarity: number;       // contribution fonds emploi
-  baremeCredit: number;     // class-specific barème credit (Cl.1a)
-  impots: number;           // = baseTax + solidarity - barèmeCredit (before external credits)
+  baseTaxBrackets: number;
+  solidarity: number;
+  baremeCredit: number;
+  impots: number;
 
-  // External credits (user-set, shown on payslip as reductions of tax)
   CIS: number;
   CIP: number;
   CIM: number;
@@ -219,8 +251,6 @@ export interface PayrollResult {
   CICO2: number;
   totalCredits: number;
 
-  // Actual tax withheld = max(0, impots - totalCredits)
-  // Credits ONLY reduce the tax, never below 0. Excess is lost.
   impotRetenu: number;
 
   net: number;
@@ -271,6 +301,8 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
     index,
   } = input;
 
+  const params = getYearParams(input.year || 2025);
+
   // ── Base salary ──
   let salaireBase: number;
   let heuresNormales: number;
@@ -282,8 +314,8 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
     salaireBase = hourlyRate * hoursWorked;
   } else {
     salaireBase = monthlyGross;
-    tauxHoraire = monthlyGross > 0 ? monthlyGross / LUX.standardMonthlyHours : 0;
-    heuresNormales = LUX.standardMonthlyHours - maladieHours;
+    tauxHoraire = monthlyGross > 0 ? monthlyGross / RATES.standardMonthlyHours : 0;
+    heuresNormales = RATES.standardMonthlyHours - maladieHours;
   }
 
   // ── Overtime ──
@@ -293,26 +325,26 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
   const salaryBrut = round(salaireBase + montantHeuresSupp);
 
   // ── Social contributions ──
-  const maladieSoinsAmt = round(salaryBrut * LUX.maladieSoins);
-  const maladieEspecesAmt = round(salaryBrut * LUX.maladieEspeces);
-  const pensionAmt = round(salaryBrut * LUX.pension);
+  const maladieSoinsAmt = round(salaryBrut * RATES.maladieSoins);
+  const maladieEspecesAmt = round(salaryBrut * RATES.maladieEspeces);
+  const pensionAmt = round(salaryBrut * RATES.pension);
   const cotisations = round(maladieSoinsAmt + maladieEspecesAmt + pensionAmt);
 
-  const dependanceBase = round(Math.max(0, salaryBrut - LUX.dependanceAbatement));
-  const dependanceAmt = round(dependanceBase * LUX.dependance);
+  // Dépendance: abatement = 1/4 SSM (year-based)
+  const depAbatement = params.ssmNonQualifie / 4;
+  const dependanceBase = round(Math.max(0, salaryBrut - depAbatement));
+  const dependanceAmt = round(dependanceBase * RATES.dependance);
 
   const totalSocial = round(cotisations + dependanceAmt);
 
   // ── Deduction fiche ──
   const deductionFiche = 0;
 
-  // ── Taxable income ──
-  // IMPORTANT: Dépendance does NOT reduce taxable income in Luxembourg.
-  // Only maladie (soins + espèces) + pension reduce the base imposable.
+  // ── Taxable income (dépendance does NOT reduce totalImposable) ──
   const totalImposable = round(salaryBrut - cotisations - deductionFiche);
 
-  // ── Progressive tax ──
-  const tax = calculateTax(totalImposable, taxClass);
+  // ── Progressive tax (with FO+DS deductions and barème credit) ──
+  const tax = calculateTax(totalImposable, taxClass, params);
 
   // ── External credits ──
   const totalCredits = round(CIS + CIP + CIM + CISSM + CICO2);
@@ -321,7 +353,6 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
   const impotRetenu = round(Math.max(0, tax.impots - totalCredits));
 
   // ── Net = totalImposable - dépendance - impotRetenu ──
-  // Dépendance is subtracted from net but was NOT subtracted from totalImposable.
   const net = round(totalImposable - dependanceAmt - impotRetenu);
 
   // ── NET A PAYER ──
@@ -377,16 +408,18 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
   };
 }
 
-/** Default CIS based on tax class */
-export function defaultCIS(taxClass: string): number {
-  return taxClass === "2" ? 116 : 58;
+/** Default CIS based on tax class and year */
+export function defaultCIS(taxClass: string, year?: number): number {
+  const p = getYearParams(year || 2025);
+  return taxClass === "2" ? p.cisDefault * 2 : p.cisDefault;
 }
 
 /** Auto-calculate CISSM if gross is near SSM */
-export function autoCISSM(grossMensuel: number): number {
+export function autoCISSM(grossMensuel: number, year?: number): number {
+  const p = getYearParams(year || 2025);
   if (grossMensuel <= 0) return 0;
-  if (grossMensuel <= LUX.ssmQualifie) {
-    const ratio = grossMensuel / LUX.ssmQualifie;
+  if (grossMensuel <= p.ssmQualifie) {
+    const ratio = grossMensuel / p.ssmQualifie;
     return round(70 * ratio);
   }
   return 0;

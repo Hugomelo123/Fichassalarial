@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/select";
 import { ChevronDown, HeartPulse, Clock, CreditCard, Briefcase, Palmtree, TrendingUp } from "lucide-react";
 import { usePayrollStore } from "@/store/usePayrollStore";
-import { defaultCIS, autoCISSM, LUX } from "@/utils/calculations";
+import { defaultCIS, autoCISSM, getYearParams, RATES } from "@/utils/calculations";
 import { useState } from "react";
 
 /* ── Collapsible Section ── */
@@ -39,11 +39,14 @@ export default function EmployeeForm() {
   const emp = employees.find((e) => e.id === selectedEmployeeId);
   if (!emp) return null;
 
+  const currentYear = parseInt(period.split("-")[0], 10) || 2025;
+  const yp = getYearParams(currentYear);
+
   const update = (data: Record<string, unknown>) => {
     // Auto-update CIS when tax class changes
     if ("taxClass" in data) {
       const newClass = data.taxClass as string;
-      data.CIS = defaultCIS(newClass);
+      data.CIS = defaultCIS(newClass, currentYear);
     }
     updateEmployee(emp.id, data);
   };
@@ -73,7 +76,7 @@ export default function EmployeeForm() {
         </div>
         <div className="w-24">
           <Label className="text-[11px] text-slate-500">Indice</Label>
-          <Input type="number" step="0.01" value={emp.index || ""} onChange={(e) => update({ index: parseFloat(e.target.value) || LUX.index })} className="mt-1 h-9 font-mono text-sm" />
+          <Input type="number" step="0.01" value={emp.index || ""} onChange={(e) => update({ index: parseFloat(e.target.value) || yp.index })} className="mt-1 h-9 font-mono text-sm" />
         </div>
       </div>
 
@@ -186,7 +189,7 @@ export default function EmployeeForm() {
           <div className="flex items-center justify-between rounded-lg bg-indigo-50 px-3 py-2 text-xs">
             <span className="text-indigo-600">Montant H.S.</span>
             <span className="font-mono font-bold text-indigo-700">
-              {(emp.overtimeHours * (emp.salaryMode === "hourly" ? emp.hourlyRate : emp.monthlyGross / LUX.standardMonthlyHours) * emp.overtimeRate).toFixed(2)} EUR
+              {(emp.overtimeHours * (emp.salaryMode === "hourly" ? emp.hourlyRate : emp.monthlyGross / RATES.standardMonthlyHours) * emp.overtimeRate).toFixed(2)} EUR
             </span>
           </div>
         )}
@@ -236,7 +239,7 @@ export default function EmployeeForm() {
           <div>
             <Label className="text-[11px] text-slate-500">CIS (Salarie)</Label>
             <Input type="number" step="0.01" value={emp.CIS || ""} onChange={(e) => update({ CIS: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
-            <p className="mt-0.5 text-[9px] text-slate-400">Defaut: {defaultCIS(emp.taxClass)} EUR/mois</p>
+            <p className="mt-0.5 text-[9px] text-slate-400">Defaut: {defaultCIS(emp.taxClass, currentYear)} EUR/mois</p>
           </div>
           <div>
             <Label className="text-[11px] text-slate-500">CIP (Pensionnes)</Label>
@@ -251,13 +254,13 @@ export default function EmployeeForm() {
           <div>
             <Label className="text-[11px] text-slate-500">CISSM (Sal. minimum)</Label>
             <Input type="number" step="0.01" value={emp.CISSM || ""} onChange={(e) => update({ CISSM: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
-            {grossMensuel > 0 && grossMensuel <= LUX.ssmQualifie && (
+            {grossMensuel > 0 && grossMensuel <= yp.ssmQualifie && (
               <button
                 type="button"
-                onClick={() => update({ CISSM: autoCISSM(grossMensuel) })}
+                onClick={() => update({ CISSM: autoCISSM(grossMensuel, currentYear) })}
                 className="mt-1 text-[9px] font-medium text-indigo-500 hover:text-indigo-700"
               >
-                Auto-calculer ({autoCISSM(grossMensuel).toFixed(2)} EUR)
+                Auto-calculer ({autoCISSM(grossMensuel, currentYear).toFixed(2)} EUR)
               </button>
             )}
           </div>
