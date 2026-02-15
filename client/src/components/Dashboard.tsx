@@ -57,7 +57,7 @@ export default function Dashboard() {
               {employees.find(e => e.id === selectedEmployeeId)?.name || "—"}
             </span>
           </h3>
-          <div className="grid grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <MiniCard label="Brut" value={results.salaryBrut} />
             <MiniCard label="Social" value={results.totalSocial} negative />
             <MiniCard label="Impots" value={results.impots} negative />
@@ -75,7 +75,7 @@ export default function Dashboard() {
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Recapitulatif par salarie</h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full min-w-[540px] text-xs">
               <thead>
                 <tr className="border-b border-slate-100 text-[9px] uppercase tracking-widest text-slate-400">
                   <th className="px-5 py-2.5 text-left">Salarie</th>

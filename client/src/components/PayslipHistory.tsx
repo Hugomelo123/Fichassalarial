@@ -44,46 +44,46 @@ export default function PayslipHistory() {
           const total = slips.reduce((s, p) => s + (p.netAPayer || p.net), 0);
           return (
             <div key={empId} className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between bg-slate-50 px-5 py-3 border-b border-slate-100">
-                <button onClick={() => goToEmployee(empId)} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600">
+              <div className="flex flex-col gap-2 bg-slate-50 px-4 py-3 border-b border-slate-100 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <button onClick={() => goToEmployee(empId)} className="flex items-center gap-3 hover:opacity-80 transition-opacity min-w-0">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600">
                     {(emp?.name || slips[0]?.employeeName || "?").charAt(0).toUpperCase()}
                   </div>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-slate-800">{emp?.name || slips[0]?.employeeName}</p>
-                    <p className="text-[10px] text-slate-400">{slips.length} fiche{slips.length > 1 ? "s" : ""} · Net total: {total.toLocaleString("fr-LU",{minimumFractionDigits:2})} EUR</p>
+                  <div className="text-left min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{emp?.name || slips[0]?.employeeName}</p>
+                    <p className="text-[10px] text-slate-400 truncate">{slips.length} fiche{slips.length > 1 ? "s" : ""} · Net total: {total.toLocaleString("fr-LU",{minimumFractionDigits:2})} EUR</p>
                   </div>
                 </button>
-                <button onClick={() => goToEmployee(empId)} className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800">
+                <button onClick={() => goToEmployee(empId)} className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 self-end sm:self-auto">
                   <User className="h-3 w-3" /> Voir salarie
                 </button>
               </div>
 
               <div className="divide-y divide-slate-50">
                 {slips.map((slip) => (
-                  <div key={slip.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition-colors">
+                  <div key={slip.id} className="flex flex-col gap-2 px-4 py-3 hover:bg-slate-50/50 transition-colors sm:flex-row sm:items-center sm:justify-between sm:px-5">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 ring-1 ring-blue-100">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-50 ring-1 ring-blue-100">
                         <Calendar className="h-4 w-4 text-blue-500" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-700">{fmtP(slip.period)}</p>
-                        <p className="text-[10px] text-slate-400">
+                        <p className="text-[10px] text-slate-400 truncate">
                           {fmtD(slip.createdAt)}
                           {slip.maladieHours > 0 && <span className="ml-2 text-amber-500">· {slip.maladieHours}h maladie</span>}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-5">
-                      <div className="text-right">
+                    <div className="flex items-center gap-4 pl-[52px] sm:gap-5 sm:pl-0">
+                      <div className="text-left sm:text-right">
                         <p className="text-[9px] uppercase text-slate-400">Brut</p>
                         <p className="font-mono text-xs text-slate-500">{slip.salaryBrut.toFixed(2)}</p>
                       </div>
-                      <div className="text-right min-w-[80px]">
+                      <div className="text-left sm:text-right sm:min-w-[80px]">
                         <p className="text-[9px] uppercase text-emerald-500">Net a payer</p>
                         <p className="font-mono text-sm font-bold text-emerald-700">{(slip.netAPayer || slip.net).toFixed(2)}</p>
                       </div>
-                      <button onClick={() => deletePayslip(slip.id)} className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors">
+                      <button onClick={() => deletePayslip(slip.id)} className="ml-auto rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>

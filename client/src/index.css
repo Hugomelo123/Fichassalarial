@@ -47,3 +47,33 @@
 
 /* Sidebar scrollbar */
 .sidebar-scroll::-webkit-scrollbar-thumb { background: hsl(223 47% 20%); }
+
+/* ── Mobile enhancements ── */
+
+/* Smooth scroll for main content */
+main { -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+
+/* Safe area for notched phones (iPhone etc.) */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-area-top { padding-top: env(safe-area-inset-top); }
+  .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* Prevent zoom on input focus (iOS) */
+@media (max-width: 1023px) {
+  input[type="number"],
+  input[type="text"],
+  select,
+  textarea { font-size: 16px !important; }
+}
+
+/* Touch-friendly tap targets */
+@media (pointer: coarse) {
+  button, [role="button"], a { min-height: 36px; min-width: 36px; }
+}
+
+/* Horizontal scroll hint indicator */
+.overflow-x-auto {
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}

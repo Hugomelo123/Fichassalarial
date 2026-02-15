@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
   calculateLuxSalary,
-  defaultCIS,
   getYearParams,
   RATES,
   type PayrollInput,
@@ -141,11 +140,11 @@ function createEmptyEmployee(name?: string, year?: number): Employee {
     chequesRepas: 0,
     autresAvantages: 0,
     autresDeductions: 0,
-    CIS: defaultCIS("1", y),
+    CIS: 0,   // 0 = auto (calculé from brut + year)
     CIP: 0,
     CIM: 0,
-    CISSM: 0,
-    CICO2: 0,
+    CISSM: 0, // 0 = auto
+    CICO2: 0, // 0 = auto
     index: p.index,
     congesAnnuels: 208, // 26 days * 8h
     congesPris: 0,
@@ -289,7 +288,7 @@ export const usePayrollStore = create<PayrollState>()(
     }),
     {
       name: "luxpayroll-store",
-      version: 6, // bumped for year-based params + FO/DS deductions
+      version: 7, // bumped: 2026 official params (index 968.04, SSM, CIS, CI-CO2 default)
     },
   ),
 );

@@ -91,15 +91,15 @@ assert(approx(r.totalSocial, 351.15, 0.5), `Total Social: ${r.totalSocial} ≈ 3
 // Total Imposable = brut − cotisations (SEM dépendance)
 assert(approx(r.totalImposable, 2576.48, 0.01), `Total Imposable: ${r.totalImposable} ≈ 2576.48`);
 
-// Impôt (should be close to 176.20 with FO+DS deductions + barème credit)
-assert(approx(r.impots, 176.20, 2.0), `Impot: ${r.impots} ≈ 176.20 (±2.00)`);
+// Impôt (exact match with 10-cent rounding per Luxembourg RTS rules)
+assert(r.impots === 176.20, `Impot: ${r.impots} === 176.20`);
 
 // Net formula: totalImposable − dépendance − impotRetenu
 const expectedNet = Number((r.totalImposable - r.dependance - r.impotRetenu).toFixed(2));
 assert(approx(r.net, expectedNet, 0.01), `Net: ${r.net} = totalImposable − dep − impotRetenu = ${expectedNet}`);
 
-// Net should match real payslip approximately
-assert(approx(r.net, 2516.19, 3.0), `Net: ${r.net} ≈ 2516.19 (±3.00)`);
+// Net should match real payslip exactly
+assert(r.net === 2516.19, `Net: ${r.net} === 2516.19`);
 
 /* ═══════════════════════════════════════════════════════
    TEST 2: Créditos excedem imposto
@@ -142,20 +142,45 @@ console.log(`  TotalImposable: ${r4.totalImposable}  Impots: ${r4.impots}  Barem
 assert(r4.impots < r.impots, `Classe 2 impots (${r4.impots}) < Classe 1 impots (${r.impots})`);
 
 /* ═══════════════════════════════════════════════════════
-   TEST 5: Year 2026 uses different params
+   TEST 5: Year 2026 — same index/SSM, higher CI-CO2
    ═══════════════════════════════════════════════════════ */
 console.log("\n══════════════════════════════════════════");
-console.log("  TEST 5: Parametros 2026 diferem de 2025");
+console.log("  TEST 5: Parametros 2026 (CI-CO2 = 18)");
 console.log("══════════════════════════════════════════\n");
 
-const r5 = calculateLuxSalary(buildInput({ year: 2026 }));
-console.log(`  2025: dep.base=${r.dependanceBase} dep=${r.dependance}`);
-console.log(`  2026: dep.base=${r5.dependanceBase} dep=${r5.dependance}`);
-// 2026 has higher SSM → higher abatement → lower dependance base
+// 2026: same SSM/index as 2025 (968.04), but CI-CO2 = 18€/month (was 16)
+const r5 = calculateLuxSalary(buildInput({ year: 2026, CICO2: 18 }));
+console.log(`  2025: dep.base=${r.dependanceBase} dep=${r.dependance} impots=${r.impots}`);
+console.log(`  2026: dep.base=${r5.dependanceBase} dep=${r5.dependance} impots=${r5.impots}`);
+
+// SSM & index are identical → dep.base must match
 assert(
-  r5.dependanceBase !== r.dependanceBase,
-  `Dep. base 2026 (${r5.dependanceBase}) ≠ Dep. base 2025 (${r.dependanceBase})`
+  r5.dependanceBase === r.dependanceBase,
+  `Dep. base 2026 (${r5.dependanceBase}) = Dep. base 2025 (${r.dependanceBase}) — same SSM`
 );
+
+// Impots from brackets are the same (same barème)
+assert(r5.impots === r.impots, `Impots 2026 (${r5.impots}) === Impots 2025 (${r.impots})`);
+
+// Net is 2€ higher in 2026 because CI-CO2 is 18 instead of 16 → 2€ more credit
+assert(
+  approx(r5.net - r.net, 2.0, 0.01),
+  `Net 2026 − Net 2025 = ${(r5.net - r.net).toFixed(2)} ≈ 2.00 (extra CI-CO2)`
+);
+
+/* ═══════════════════════════════════════════════════════
+   TEST 6: Créditos automáticos (CIS/CICO2/CISSM = 0 → auto)
+   ═══════════════════════════════════════════════════════ */
+console.log("\n══════════════════════════════════════════");
+console.log("  TEST 6: Auto credits (0 = selon brut)");
+console.log("══════════════════════════════════════════\n");
+
+const r6 = calculateLuxSalary(buildInput({ CIS: 0, CICO2: 0, CISSM: 0 }));
+console.log(`  CIS=0,CICO2=0,CISSM=0 → CIS=${r6.CIS} CICO2=${r6.CICO2} CISSM=${r6.CISSM} Net=${r6.net}`);
+assert(r6.CIS === 50, `Auto CIS: ${r6.CIS} === 50`);
+assert(r6.CICO2 === 16, `Auto CI-CO2: ${r6.CICO2} === 16`);
+assert(r6.CISSM === 81, `Auto CISSM: ${r6.CISSM} === 81`);
+assert(r6.net === r.net, `Net with auto credits: ${r6.net} === ${r.net}`);
 
 console.log("\n══════════════════════════════════════════");
 console.log("  TODOS OS TESTES PASSARAM ✅");

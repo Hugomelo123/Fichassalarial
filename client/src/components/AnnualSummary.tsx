@@ -18,7 +18,7 @@ export default function AnnualSummary() {
         <div className="h-1.5 w-1.5 rounded-full bg-teal-500" />
         Projection annuelle (x12)
       </h3>
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {items.map((it) => (
           <div key={it.label} className="rounded-xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
             <p className="text-[9px] font-medium uppercase text-slate-400">{it.label}</p>

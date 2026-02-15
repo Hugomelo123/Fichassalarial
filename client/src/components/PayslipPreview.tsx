@@ -33,27 +33,28 @@ export default function PayslipPreview() {
   return (
     <div className="space-y-3">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
           <div className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
           Decompte salaire / traitement
         </h3>
         <div className="flex gap-1.5">
-          <Button variant="outline" size="sm" onClick={onSave} className={`h-7 gap-1 text-[11px] ${saved ? "border-emerald-300 bg-emerald-50 text-emerald-700" : ""}`}>
+          <Button variant="outline" size="sm" onClick={onSave} className={`h-8 gap-1 text-[11px] sm:h-7 ${saved ? "border-emerald-300 bg-emerald-50 text-emerald-700" : ""}`}>
             {saved ? <Check className="h-3 w-3" /> : <Save className="h-3 w-3" />}
-            {saved ? "OK" : "Sauvegarder"}
+            <span className="hidden xs:inline">{saved ? "OK" : "Sauvegarder"}</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={onXML} className="h-7 gap-1 text-[11px]">
+          <Button variant="outline" size="sm" onClick={onXML} className="h-8 gap-1 text-[11px] sm:h-7">
             <FileCode className="h-3 w-3" /> XML
           </Button>
-          <Button size="sm" onClick={onPDF} className="h-7 gap-1 bg-indigo-600 text-[11px] hover:bg-indigo-700">
+          <Button size="sm" onClick={onPDF} className="h-8 gap-1 bg-indigo-600 text-[11px] hover:bg-indigo-700 sm:h-7">
             <Download className="h-3 w-3" /> PDF
           </Button>
         </div>
       </div>
 
-      {/* Document */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm font-mono text-xs">
+      {/* Document — scrollable on small screens */}
+      <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm font-mono text-xs">
+        <div className="min-w-[600px]">
         {/* ── Header: Title + Company ── */}
         <div className="grid grid-cols-2 border-b border-slate-300">
           <div className="border-r border-slate-300 p-4">
@@ -266,7 +267,8 @@ export default function PayslipPreview() {
         <div className="border-t border-slate-200 py-2 text-center text-[8px] uppercase tracking-widest text-slate-300">
           LuxPayroll 2026 &middot; Simulation indicative &middot; Grand-Duche de Luxembourg
         </div>
-      </div>
+      </div>{/* close min-w-[600px] */}
+      </div>{/* close overflow-x-auto */}
     </div>
   );
 }

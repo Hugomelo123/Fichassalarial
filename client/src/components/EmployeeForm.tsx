@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/select";
 import { ChevronDown, HeartPulse, Clock, CreditCard, Briefcase, Palmtree, TrendingUp } from "lucide-react";
 import { usePayrollStore } from "@/store/usePayrollStore";
-import { defaultCIS, autoCISSM, getYearParams, RATES } from "@/utils/calculations";
+import { autoCISSM, computeCISFromAnnual, computeCICO2FromAnnual, getYearParams, RATES } from "@/utils/calculations";
 import { useState } from "react";
 
 /* ── Collapsible Section ── */
@@ -43,17 +43,16 @@ export default function EmployeeForm() {
   const yp = getYearParams(currentYear);
 
   const update = (data: Record<string, unknown>) => {
-    // Auto-update CIS when tax class changes
-    if ("taxClass" in data) {
-      const newClass = data.taxClass as string;
-      data.CIS = defaultCIS(newClass, currentYear);
-    }
     updateEmployee(emp.id, data);
   };
 
   const grossMensuel = emp.salaryMode === "hourly"
     ? emp.hourlyRate * emp.hoursWorked
     : emp.monthlyGross;
+  const annualBrut = grossMensuel * 12;
+  const autoCIS = grossMensuel > 0 ? computeCISFromAnnual(annualBrut, currentYear) : 0;
+  const autoCICO2 = grossMensuel > 0 ? computeCICO2FromAnnual(annualBrut, currentYear) : 0;
+  const autoCISSMVal = grossMensuel > 0 ? autoCISSM(grossMensuel, currentYear) : 0;
 
   return (
     <div className="space-y-4">
@@ -92,7 +91,7 @@ export default function EmployeeForm() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
           <Label className="text-[11px] text-slate-500">Matricule</Label>
           <Input value={emp.ssn} onChange={(e) => update({ ssn: e.target.value })} placeholder="DEMO-500700" className="mt-1 h-9 font-mono text-sm" />
@@ -238,8 +237,8 @@ export default function EmployeeForm() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-[11px] text-slate-500">CIS (Salarie)</Label>
-            <Input type="number" step="0.01" value={emp.CIS || ""} onChange={(e) => update({ CIS: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
-            <p className="mt-0.5 text-[9px] text-slate-400">Defaut: {defaultCIS(emp.taxClass, currentYear)} EUR/mois</p>
+            <Input type="number" step="0.01" min={0} value={emp.CIS || ""} onChange={(e) => update({ CIS: parseFloat(e.target.value) || 0 })} placeholder={emp.CIS === 0 && autoCIS > 0 ? `${autoCIS.toFixed(2)} (auto)` : undefined} className="mt-1 h-9 font-mono text-sm" />
+            <p className="mt-0.5 text-[9px] text-slate-400">{emp.CIS === 0 && grossMensuel > 0 ? `Auto: ${autoCIS.toFixed(2)} EUR/mois (selon brut)` : "0 = calcul auto selon salaire"}</p>
           </div>
           <div>
             <Label className="text-[11px] text-slate-500">CIP (Pensionnes)</Label>
@@ -253,23 +252,15 @@ export default function EmployeeForm() {
           </div>
           <div>
             <Label className="text-[11px] text-slate-500">CISSM (Sal. minimum)</Label>
-            <Input type="number" step="0.01" value={emp.CISSM || ""} onChange={(e) => update({ CISSM: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
-            {grossMensuel > 0 && grossMensuel <= yp.ssmQualifie && (
-              <button
-                type="button"
-                onClick={() => update({ CISSM: autoCISSM(grossMensuel, currentYear) })}
-                className="mt-1 text-[9px] font-medium text-indigo-500 hover:text-indigo-700"
-              >
-                Auto-calculer ({autoCISSM(grossMensuel, currentYear).toFixed(2)} EUR)
-              </button>
-            )}
+            <Input type="number" step="0.01" min={0} value={emp.CISSM || ""} onChange={(e) => update({ CISSM: parseFloat(e.target.value) || 0 })} placeholder={emp.CISSM === 0 && autoCISSMVal > 0 ? `${autoCISSMVal.toFixed(2)} (auto)` : undefined} className="mt-1 h-9 font-mono text-sm" />
+            <p className="mt-0.5 text-[9px] text-slate-400">{emp.CISSM === 0 && grossMensuel > 0 ? (autoCISSMVal > 0 ? `Auto: ${autoCISSMVal.toFixed(2)} EUR (brut 1800–3600)` : "0 = auto (hors bande SSM)") : "0 = calcul auto"}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-[11px] text-slate-500">CI-CO2 (Climat/energie)</Label>
-            <Input type="number" step="0.01" value={emp.CICO2 || ""} onChange={(e) => update({ CICO2: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
-            <p className="mt-0.5 text-[9px] text-slate-400">Credit d'impot taxe CO2</p>
+            <Input type="number" step="0.01" min={0} value={emp.CICO2 || ""} onChange={(e) => update({ CICO2: parseFloat(e.target.value) || 0 })} placeholder={emp.CICO2 === 0 && autoCICO2 > 0 ? `${autoCICO2.toFixed(2)} (auto)` : undefined} className="mt-1 h-9 font-mono text-sm" />
+            <p className="mt-0.5 text-[9px] text-slate-400">{emp.CICO2 === 0 && grossMensuel > 0 ? `Auto: ${autoCICO2.toFixed(2)} EUR/mois (selon brut)` : "0 = calcul auto selon salaire"}</p>
           </div>
         </div>
         <p className="text-[9px] text-slate-400">
@@ -279,7 +270,7 @@ export default function EmployeeForm() {
 
       {/* ── CONGES & ABSENCES ── */}
       <Section title="Conges & Absences (heures annuelles)" icon={Palmtree}>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
             <Label className="text-[11px] text-slate-500">Conges annuels (h)</Label>
             <Input type="number" min={0} value={emp.congesAnnuels || ""} onChange={(e) => update({ congesAnnuels: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
@@ -296,7 +287,7 @@ export default function EmployeeForm() {
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>
             <Label className="text-[11px] text-slate-500">Feries (h)</Label>
             <Input type="number" min={0} value={emp.feriados || ""} onChange={(e) => update({ feriados: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />

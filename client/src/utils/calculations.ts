@@ -13,7 +13,8 @@ export interface YearParams {
   index: number;
   ssmNonQualifie: number;
   ssmQualifie: number;
-  cisDefault: number;       // CIS mensuel par défaut (classe 1/1a)
+  cisDefault: number;       // CIS mensuel par défaut (classe 1/1a) — 600/12 = 50
+  cico2Default: number;     // CI-CO2 salarié mensuel par défaut
   foMensuel: number;        // Frais d'obtention forfaitaire (mensuel)
   dsMensuel: number;        // Dépenses spéciales minimum (mensuel)
   monoparentalMensuel: number; // Abattement monoparental (classe 1a, mensuel)
@@ -25,7 +26,8 @@ const YEAR_PARAMS: Record<number, YearParams> = {
     index: 944.43,
     ssmNonQualifie: 2570.93,
     ssmQualifie: 3085.11,
-    cisDefault: 46,
+    cisDefault: 46,       // CIS 552/12
+    cico2Default: 16,     // CI-CO2 192/12
     foMensuel: 45,
     dsMensuel: 40,
     monoparentalMensuel: 62.50,
@@ -33,19 +35,22 @@ const YEAR_PARAMS: Record<number, YearParams> = {
   },
   2025: {
     index: 968.04,
-    ssmNonQualifie: 2703.72,
-    ssmQualifie: 3244.47,
-    cisDefault: 50,
+    ssmNonQualifie: 2703.74,  // Official: SSM NQ = 2 703,74 € (index 968.04)
+    ssmQualifie: 3244.48,     // Official: SSM Q  = 3 244,48 €
+    cisDefault: 50,            // CIS 600/12 (salary 11 266–40 000 €/year)
+    cico2Default: 16,          // CI-CO2 192/12
     foMensuel: 45,
     dsMensuel: 40,
     monoparentalMensuel: 62.50,
     baremeCredit1: 29,
   },
   2026: {
-    index: 987.78,
-    ssmNonQualifie: 2771.31,
-    ssmQualifie: 3325.58,
-    cisDefault: 58,
+    // Official (gouvernement.lu, Jan 2026): index unchanged at 968.04
+    index: 968.04,
+    ssmNonQualifie: 2703.74,  // Same as 2025 — no index tranche triggered
+    ssmQualifie: 3244.48,     // Same as 2025
+    cisDefault: 50,            // CIS 600/12 (unchanged for 2026)
+    cico2Default: 18,          // CI-CO2 216/12 (increased from 192 to 216 for 2026)
     foMensuel: 45,
     dsMensuel: 40,
     monoparentalMensuel: 62.50,
@@ -119,7 +124,7 @@ function applyBrackets(monthlyTaxable: number): number {
   for (const b of BRACKETS) {
     if (monthlyTaxable <= prev) break;
     const slice = Math.min(monthlyTaxable, b.max) - prev;
-    if (slice > 0) tax += slice * b.rate;
+    if (slice > 0) tax += round(slice * b.rate); // round each slice to avoid float drift
     prev = b.max;
   }
   return tax;
@@ -150,38 +155,38 @@ function calculateTax(
   }
   const taxableAfterForfaits = Math.max(0, monthlyTaxable - deductions);
 
-  // ── 2. Progressive brackets ──
+  // ── 2. Progressive brackets (round each step for precision) ──
   let baseTax: number;
   if (taxClass === "2") {
     const half = taxableAfterForfaits / 2;
-    baseTax = applyBrackets(half) * 2;
+    baseTax = round(applyBrackets(half) * 2);
   } else {
-    baseTax = applyBrackets(taxableAfterForfaits);
+    baseTax = round(applyBrackets(taxableAfterForfaits));
   }
 
-  // ── 3. Solidarity surcharge ──
+  // ── 3. Solidarity surcharge (round after multiplication) ──
   const solidarityRate = monthlyTaxable > RATES.solidarityThreshold ? 0.09 : 0.07;
-  const solidarity = baseTax * solidarityRate;
-  const totalBrut = baseTax + solidarity;
+  const solidarity = round(baseTax * solidarityRate);
+  const totalBrut = round(baseTax + solidarity);
 
   // ── 4. Barème credit (class-specific) ──
   let baremeCredit = 0;
   if (taxClass === "1a") {
-    baremeCredit = Math.min(30, totalBrut * 0.35);
+    baremeCredit = round(Math.min(30, totalBrut * 0.35));
   } else if (taxClass === "2") {
-    baremeCredit = params.baremeCredit1 * 2; // double for splitting
+    baremeCredit = round(params.baremeCredit1 * 2); // double for splitting
   } else {
     baremeCredit = params.baremeCredit1;
   }
 
-  // ── 5. Impôt ──
-  const impots = Math.max(0, totalBrut - baremeCredit);
+  // ── 5. Impôt — rounded to nearest 10 cents (Luxembourg RTS rule) ──
+  const impots = roundTo10cents(Math.max(0, totalBrut - baremeCredit));
 
   return {
-    baseTax: round(baseTax),
-    solidarity: round(solidarity),
-    baremeCredit: round(baremeCredit),
-    impots: round(impots),
+    baseTax,
+    solidarity,
+    baremeCredit,
+    impots,
   };
 }
 
@@ -273,6 +278,14 @@ function round(n: number): number {
   return Number(n.toFixed(2));
 }
 
+/**
+ * Round to the nearest 10 cents (0.10 EUR) — matches the Luxembourg RTS
+ * rounding rule for the impôt retenu ("arrondi au multiple de 10 cents").
+ */
+function roundTo10cents(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
 export function getWorkingDays(year: number, month: number): number {
   const days = new Date(year, month, 0).getDate();
   let wd = 0;
@@ -324,6 +337,13 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
   // ── Gross ──
   const salaryBrut = round(salaireBase + montantHeuresSupp);
 
+  // ── Auto crédits when input is 0 (from salary + year) ──
+  const year = input.year || 2025;
+  const annualBrut = salaryBrut * 12;
+  const cisUsed = CIS > 0 ? CIS : computeCISFromAnnual(annualBrut, year);
+  const cico2Used = CICO2 > 0 ? CICO2 : computeCICO2FromAnnual(annualBrut, year);
+  const cissmUsed = CISSM > 0 ? CISSM : autoCISSM(salaryBrut, year);
+
   // ── Social contributions ──
   const maladieSoinsAmt = round(salaryBrut * RATES.maladieSoins);
   const maladieEspecesAmt = round(salaryBrut * RATES.maladieEspeces);
@@ -346,8 +366,8 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
   // ── Progressive tax (with FO+DS deductions and barème credit) ──
   const tax = calculateTax(totalImposable, taxClass, params);
 
-  // ── External credits ──
-  const totalCredits = round(CIS + CIP + CIM + CISSM + CICO2);
+  // ── External credits (CIS/CICO2/CISSM auto when 0) ──
+  const totalCredits = round(cisUsed + CIP + CIM + cissmUsed + cico2Used);
 
   // ── Impot retenu (credits reduce tax, never below 0) ──
   const impotRetenu = round(Math.max(0, tax.impots - totalCredits));
@@ -386,11 +406,11 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
     baremeCredit: tax.baremeCredit,
     impots: tax.impots,
 
-    CIS,
+    CIS: cisUsed,
     CIP,
     CIM,
-    CISSM,
-    CICO2,
+    CISSM: cissmUsed,
+    CICO2: cico2Used,
     totalCredits,
 
     impotRetenu,
@@ -408,16 +428,63 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
   };
 }
 
-/** Default CIS based on tax class and year */
+/** Default CIS based on tax class and year (fallback when no salary) */
 export function defaultCIS(taxClass: string, year?: number): number {
   const p = getYearParams(year || 2025);
   return taxClass === "2" ? p.cisDefault * 2 : p.cisDefault;
 }
 
-/** Auto-calculate CISSM if gross is near SSM */
+/**
+ * CIS mensuel from annual gross — ACD formula (2025/2026).
+ * 936–11 265: 300 + (brut−936)×0.029; 11 266–40 000: 600; 40 001–79 999: 600−(brut−40 000)×0.015; ≥80 000: 0.
+ */
+export function computeCISFromAnnual(annualBrut: number, year: number): number {
+  if (annualBrut < 936) return 0;
+  if (annualBrut >= 80_000) return 0;
+  let annual = 0;
+  if (annualBrut <= 11_265) {
+    annual = 300 + (annualBrut - 936) * 0.029;
+  } else if (annualBrut <= 40_000) {
+    annual = 600;
+  } else {
+    annual = Math.max(0, 600 - (annualBrut - 40_000) * 0.015);
+  }
+  return round(annual / 12);
+}
+
+/**
+ * CI-CO2 mensuel from annual gross — ACD 2025: 192/12 (≤40k), 2026: 216/12 (≤40k); 40 001–79 999 formula; ≥80k: 0.
+ */
+export function computeCICO2FromAnnual(annualBrut: number, year: number): number {
+  if (annualBrut < 936) return 0;
+  if (annualBrut >= 80_000) return 0;
+  const params = getYearParams(year);
+  if (annualBrut <= 40_000) {
+    return round((params.cico2Default * 12) / 12); // 16 or 18
+  }
+  // 40 001 – 79 999
+  if (year >= 2026) {
+    const annual = Math.max(0, 216 - (annualBrut - 40_000) * 0.0054);
+    return round(annual / 12);
+  }
+  const annual = Math.max(0, 192 - (annualBrut - 40_000) * 0.0048);
+  return round(annual / 12);
+}
+
+/**
+ * CISSM mensuel — 2025+ bandes: 1 800–3 000 → 81 €; 3 000–3 600 → 81/600×(3 600−brut). Sinon 0.
+ */
 export function autoCISSM(grossMensuel: number, year?: number): number {
-  const p = getYearParams(year || 2025);
+  const y = year || 2025;
   if (grossMensuel <= 0) return 0;
+  if (y >= 2025) {
+    if (grossMensuel >= 1800 && grossMensuel < 3000) return 81;
+    if (grossMensuel >= 3000 && grossMensuel <= 3600) {
+      return round((81 / 600) * (3600 - grossMensuel));
+    }
+    return 0;
+  }
+  const p = getYearParams(y);
   if (grossMensuel <= p.ssmQualifie) {
     const ratio = grossMensuel / p.ssmQualifie;
     return round(70 * ratio);
