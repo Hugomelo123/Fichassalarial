@@ -1,13 +1,37 @@
-/** Luxembourg social contribution rates — 2026 */
-export const RATES = {
-  maladieSoins: 0.028,      // 2.80% — CNS soins de santé
-  maladieEspeces: 0.0025,   // 0.25% — CNS indemnités pécuniaires
-  pension: 0.08,             // 8.00% — CNAP
-  dependance: 0.014,         // 1.40% — Assurance dépendance
-} as const;
+/**
+ * Luxembourg Payroll Engine — 2026
+ * Based on CCSS / Administration des Contributions Directes rates.
+ */
 
-/** Standard working hours per month in Luxembourg (40h/week) */
-export const STANDARD_MONTHLY_HOURS = 176;
+/* ── Luxembourg 2026 Parameters ── */
+
+export const LUX = {
+  /** Indice actuel (cost-of-living index) */
+  index: 955.99,
+
+  /** Salaire Social Minimum (SSM) mensuel — non qualifié */
+  ssmNonQualifie: 2570.93,
+  /** SSM mensuel — qualifié (+20%) */
+  ssmQualifie: 3085.11,
+
+  /** Social contribution rates (part salariale) */
+  maladieSoins: 0.028,       // 2.80% — CNS soins de santé
+  maladieEspeces: 0.0025,    // 0.25% — CNS indemnités pécuniaires
+  pension: 0.08,              // 8.00% — CNAP
+  dependance: 0.014,          // 1.40% — Assurance dépendance
+
+  /** Abattement dépendance = 1/4 SSM non-qualifié */
+  dependanceAbatement: 2570.93 / 4, // ~642.73
+
+  /** Standard hours */
+  standardWeeklyHours: 40,
+  standardMonthlyHours: 176,
+
+  /** CIS default (Crédit d'Impôt pour Salariés) */
+  cisDefault: 58,
+};
+
+/* ── Interfaces ── */
 
 export interface PayrollInput {
   salaryMode: "monthly" | "hourly";
@@ -15,106 +39,236 @@ export interface PayrollInput {
   hourlyRate: number;
   hoursWorked: number;
   maladieHours: number;
+
+  // Overtime
+  overtimeHours: number;
+  overtimeRate: number; // multiplier e.g. 1.4 = majoration 40%
+
+  // Tax
   taxClass: string;
+
+  // Fiscal credits (monthly)
+  CIS: number;  // Crédit d'Impôt Salarié
+  CIP: number;  // Crédit d'Impôt Pensionné
+  CIM: number;  // Crédit d'Impôt Monoparental
+  CISSM: number; // Crédit d'Impôt SSM
+
+  // Avantages / Déductions
+  fraisDeplacement: number;
+  chequesRepas: number;
+  autresAvantages: number;
+  autresDeductions: number;
+
+  // Index
+  index: number;
 }
 
 export interface PayrollResult {
-  salaryBrut: number;
+  // Base
+  salaireBase: number;
   heuresNormales: number;
   heuresMaladie: number;
+  heuresSupp: number;
   heuresTotales: number;
+  tauxHoraire: number;
+  montantHeuresSupp: number;
+
+  // Gross
+  salaryBrut: number;
+
+  // Social contributions
   maladieSoins: number;
   maladieEspeces: number;
   pension: number;
   cotisations: number;
+  dependanceBase: number;
   dependance: number;
   totalSocial: number;
+
+  // Deduction fiche (always 0 in standard case)
+  deductionFiche: number;
+
+  // Tax
   totalImposable: number;
   impots: number;
-  credit: number;
+
+  // Credits
+  CIS: number;
+  CIP: number;
+  CIM: number;
+  CISSM: number;
+  totalCredits: number;
+
+  // Net before adjustments
   net: number;
+
+  // Adjustments (non-taxable)
+  fraisDeplacement: number;
+  chequesRepas: number;
+  autresAvantages: number;
+  autresDeductions: number;
+
+  // Final
+  netAPayer: number;
+
+  // Index
+  index: number;
 }
 
-/**
- * Calculate Luxembourg payroll based on 2026 rates.
- *
- * Maladie hours: In Luxembourg the employer pays 100 % of the salary
- * for the first 77 calendar days of sick leave per reference period.
- * These hours are included in the gross but tracked separately.
- */
-export function calculateLuxSalary(input: PayrollInput): PayrollResult {
-  const { salaryMode, monthlyGross, hourlyRate, hoursWorked, maladieHours, taxClass } = input;
+/* ── Helpers ── */
 
-  // --- Gross salary ---
-  let salaryBrut: number;
+function round(n: number): number {
+  return Number(n.toFixed(2));
+}
+
+/** Get working days (Mon-Fri) in a month */
+export function getWorkingDays(year: number, month: number): number {
+  const days = new Date(year, month, 0).getDate();
+  let wd = 0;
+  for (let d = 1; d <= days; d++) {
+    const dow = new Date(year, month - 1, d).getDay();
+    if (dow !== 0 && dow !== 6) wd++;
+  }
+  return wd;
+}
+
+/** Get calendar days in a month */
+export function getCalendarDays(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+/* ── Main Calculation ── */
+
+export function calculateLuxSalary(input: PayrollInput): PayrollResult {
+  const {
+    salaryMode, monthlyGross, hourlyRate, hoursWorked, maladieHours,
+    overtimeHours, overtimeRate,
+    taxClass,
+    CIS, CIP, CIM, CISSM,
+    fraisDeplacement, chequesRepas, autresAvantages, autresDeductions,
+    index,
+  } = input;
+
+  // ── Base salary ──
+  let salaireBase: number;
   let heuresNormales: number;
-  let heuresMaladie = maladieHours;
+  let tauxHoraire: number;
 
   if (salaryMode === "hourly") {
     heuresNormales = Math.max(0, hoursWorked - maladieHours);
-    // All hours (normal + maladie) are paid at the same rate
-    salaryBrut = hourlyRate * hoursWorked;
+    tauxHoraire = hourlyRate;
+    salaireBase = hourlyRate * hoursWorked; // includes maladie hours (employer continues to pay)
   } else {
-    salaryBrut = monthlyGross;
-    // For monthly workers we still track hours for info
-    const effectiveRate = monthlyGross > 0 ? monthlyGross / STANDARD_MONTHLY_HOURS : 0;
-    heuresNormales = STANDARD_MONTHLY_HOURS - maladieHours;
-    // Maladie doesn't change gross for monthly workers (employer continues to pay)
-    void effectiveRate;
+    salaireBase = monthlyGross;
+    tauxHoraire = monthlyGross > 0 ? monthlyGross / LUX.standardMonthlyHours : 0;
+    heuresNormales = LUX.standardMonthlyHours - maladieHours;
   }
 
-  // --- Social contributions (part salariale) ---
-  const maladieSoinsAmt = salaryBrut * RATES.maladieSoins;
-  const maladieEspecesAmt = salaryBrut * RATES.maladieEspeces;
-  const pensionAmt = salaryBrut * RATES.pension;
-  const cotisations = maladieSoinsAmt + maladieEspecesAmt + pensionAmt;
-  const dependanceAmt = salaryBrut * RATES.dependance;
-  const totalSocial = cotisations + dependanceAmt;
+  // ── Overtime ──
+  const montantHeuresSupp = round(overtimeHours * tauxHoraire * overtimeRate);
 
-  // --- Taxable income ---
-  const totalImposable = salaryBrut - totalSocial;
+  // ── Gross ──
+  const salaryBrut = round(salaireBase + montantHeuresSupp);
 
-  // --- Tax (simplified average rate per class) ---
+  // ── Social contributions ──
+  const maladieSoinsAmt = round(salaryBrut * LUX.maladieSoins);
+  const maladieEspecesAmt = round(salaryBrut * LUX.maladieEspeces);
+  const pensionAmt = round(salaryBrut * LUX.pension);
+  const cotisations = round(maladieSoinsAmt + maladieEspecesAmt + pensionAmt);
+
+  // Dépendance: base = max(0, brut - 1/4 SSM)
+  const depAbatement = LUX.dependanceAbatement;
+  const dependanceBase = round(Math.max(0, salaryBrut - depAbatement));
+  const dependanceAmt = round(dependanceBase * LUX.dependance);
+
+  const totalSocial = round(cotisations + dependanceAmt);
+
+  // ── Deduction fiche ──
+  const deductionFiche = 0; // Code FD — for specific cases
+
+  // ── Taxable income ──
+  const totalImposable = round(salaryBrut - totalSocial - deductionFiche);
+
+  // ── Tax (simplified average rate per class) ──
   let impotsRate: number;
-  let credit: number;
-
   switch (taxClass) {
     case "2":
       impotsRate = 0.065;
-      credit = 116; // CIS x2 for married
       break;
     case "1a":
       impotsRate = 0.075;
-      credit = 58;
       break;
     case "1":
     default:
       impotsRate = 0.0842;
-      credit = 58;
       break;
   }
+  const impots = round(Math.max(0, totalImposable * impotsRate));
 
-  const impots = Math.max(0, totalImposable * impotsRate);
-  const net = totalImposable - impots + credit;
+  // ── Credits ──
+  const totalCredits = round(CIS + CIP + CIM + CISSM);
+
+  // ── Net ──
+  const net = round(totalImposable - impots + totalCredits);
+
+  // ── NET A PAYER ──
+  const netAPayer = round(net + fraisDeplacement + autresAvantages - chequesRepas - autresDeductions);
 
   return {
-    salaryBrut: round(salaryBrut),
+    salaireBase: round(salaireBase),
     heuresNormales: round(heuresNormales),
-    heuresMaladie: round(heuresMaladie),
-    heuresTotales: round(heuresNormales + heuresMaladie),
-    maladieSoins: round(maladieSoinsAmt),
-    maladieEspeces: round(maladieEspecesAmt),
-    pension: round(pensionAmt),
-    cotisations: round(cotisations),
-    dependance: round(dependanceAmt),
-    totalSocial: round(totalSocial),
-    totalImposable: round(totalImposable),
-    impots: round(impots),
-    credit,
-    net: round(net),
+    heuresMaladie: round(maladieHours),
+    heuresSupp: round(overtimeHours),
+    heuresTotales: round(heuresNormales + maladieHours + overtimeHours),
+    tauxHoraire: round(tauxHoraire),
+    montantHeuresSupp,
+
+    salaryBrut,
+
+    maladieSoins: maladieSoinsAmt,
+    maladieEspeces: maladieEspecesAmt,
+    pension: pensionAmt,
+    cotisations,
+    dependanceBase,
+    dependance: dependanceAmt,
+    totalSocial,
+
+    deductionFiche,
+
+    totalImposable,
+    impots,
+
+    CIS,
+    CIP,
+    CIM,
+    CISSM,
+    totalCredits,
+
+    net,
+
+    fraisDeplacement,
+    chequesRepas,
+    autresAvantages,
+    autresDeductions,
+
+    netAPayer,
+
+    index,
   };
 }
 
-function round(n: number): number {
-  return Number(n.toFixed(2));
+/** Default CIS based on tax class */
+export function defaultCIS(taxClass: string): number {
+  return taxClass === "2" ? 116 : 58;
+}
+
+/** Auto-calculate CISSM if gross is near SSM */
+export function autoCISSM(grossMensuel: number): number {
+  if (grossMensuel <= 0) return 0;
+  if (grossMensuel <= LUX.ssmQualifie) {
+    // Simplified: proportional credit for SSM earners (max ~70 EUR/month)
+    const ratio = grossMensuel / LUX.ssmQualifie;
+    return round(70 * ratio);
+  }
+  return 0;
 }

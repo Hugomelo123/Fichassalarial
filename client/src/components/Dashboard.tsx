@@ -4,9 +4,8 @@ import { Users, Banknote, TrendingDown, TrendingUp, BarChart3 } from "lucide-rea
 export default function Dashboard() {
   const { employees, payslips, results, selectedEmployeeId } = usePayrollStore();
 
-  // Summary: Total payslips, unique employees, total brut/net
   const totBrut = payslips.reduce((s, p) => s + p.salaryBrut, 0);
-  const totNet = payslips.reduce((s, p) => s + p.net, 0);
+  const totNet = payslips.reduce((s, p) => s + (p.netAPayer || p.net), 0);
   const totCot = payslips.reduce((s, p) => s + p.results.totalSocial, 0);
   const totImpots = payslips.reduce((s, p) => s + p.results.impots, 0);
   const uniqueEmps = new Set(payslips.map((p) => p.employeeId)).size;
@@ -18,10 +17,9 @@ export default function Dashboard() {
     { label: "Net total paye", value: fmt(totNet), sub: "montant final", icon: TrendingUp, bg: "bg-emerald-50", fg: "text-emerald-600", ring: "ring-emerald-100" },
   ];
 
-  // Per-employee summary (latest simulation or latest payslip)
   const empSummary = employees.map((emp) => {
     const slips = payslips.filter((p) => p.employeeId === emp.id);
-    const last = slips[0]; // sorted newest first
+    const last = slips[0];
     const isCurrent = emp.id === selectedEmployeeId;
     return { emp, slips: slips.length, last, isCurrent };
   });
@@ -49,7 +47,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Current employee snapshot */}
+      {/* Current simulation */}
       {results && results.salaryBrut > 0 && (
         <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 to-white p-5 shadow-sm">
           <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-indigo-400">
@@ -59,12 +57,13 @@ export default function Dashboard() {
               {employees.find(e => e.id === selectedEmployeeId)?.name || "—"}
             </span>
           </h3>
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-6 gap-3">
             <MiniCard label="Brut" value={results.salaryBrut} />
             <MiniCard label="Social" value={results.totalSocial} negative />
             <MiniCard label="Impots" value={results.impots} negative />
-            <MiniCard label="Credit" value={results.credit} positive />
-            <MiniCard label="Net" value={results.net} highlight />
+            <MiniCard label="Credits" value={results.totalCredits} positive />
+            <MiniCard label="Net" value={results.net} />
+            <MiniCard label="A Payer" value={results.netAPayer} highlight />
           </div>
         </div>
       )}
@@ -84,7 +83,7 @@ export default function Dashboard() {
                   <th className="px-5 py-2.5 text-right">Brut</th>
                   <th className="px-5 py-2.5 text-right">Net</th>
                   <th className="px-5 py-2.5 text-right">Fiches</th>
-                  <th className="px-5 py-2.5 text-right">Dern. mois</th>
+                  <th className="px-5 py-2.5 text-right">Conges</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -108,7 +107,7 @@ export default function Dashboard() {
                       {last ? last.salaryBrut.toFixed(2) : "—"}
                     </td>
                     <td className="px-5 py-3 text-right font-mono font-semibold text-emerald-700">
-                      {last ? last.net.toFixed(2) : "—"}
+                      {last ? (last.netAPayer || last.net).toFixed(2) : "—"}
                     </td>
                     <td className="px-5 py-3 text-right">
                       {slips > 0 ? (
@@ -117,8 +116,8 @@ export default function Dashboard() {
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-right text-slate-400">
-                      {last ? fmtPeriod(last.period) : "—"}
+                    <td className="px-5 py-3 text-right text-slate-500">
+                      {emp.congesPris}/{emp.congesAnnuels} j
                     </td>
                   </tr>
                 ))}
@@ -145,9 +144,3 @@ function MiniCard({ label, value, negative, positive, highlight }: { label: stri
 }
 
 function fmt(n: number) { return n.toLocaleString("fr-LU", { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
-
-function fmtPeriod(p: string) {
-  const MO: Record<string, string> = { "01":"Jan","02":"Fev","03":"Mar","04":"Avr","05":"Mai","06":"Jun","07":"Jul","08":"Aou","09":"Sep","10":"Oct","11":"Nov","12":"Dec" };
-  const [y, m] = p.split("-");
-  return `${MO[m]||m} ${y}`;
-}

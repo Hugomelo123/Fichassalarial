@@ -2,9 +2,10 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
   calculateLuxSalary,
-  PayrollResult,
-  STANDARD_MONTHLY_HOURS,
+  defaultCIS,
+  LUX,
   type PayrollInput,
+  type PayrollResult,
 } from "../utils/calculations";
 
 /* ─── Types ─── */
@@ -13,18 +14,50 @@ export interface Employee {
   id: string;
   name: string;
   role: string;
-  ssn: string;
+  ssn: string;            // matricule
+  numSecSociale: string;  // N° Sécurité Sociale
   entryDate: string;
+  dateAnciennete: string;
   taxClass: string;
+
   salaryMode: "monthly" | "hourly";
   monthlyGross: number;
   hourlyRate: number;
   hoursWorked: number;
+  degreeOccupation: number; // h/week (default 40)
+
+  // Overtime
+  overtimeHours: number;
+  overtimeRate: number; // multiplier (default 1.4)
+
+  // Avantages & Déductions
+  fraisDeplacement: number;
+  chequesRepas: number;
+  autresAvantages: number;
+  autresDeductions: number;
+
+  // Fiscal credits
+  CIS: number;
+  CIP: number;
+  CIM: number;
+  CISSM: number;
+
+  // Index
+  index: number;
+
+  // Leave tracking (annual counters)
+  congesAnnuels: number;
+  congesPris: number;
+  feriados: number;
+  recuperation: number;
+  repos: number;
+  maladieDays: number;
 }
 
 export interface CompanyData {
   name: string;
   address: string;
+  city: string;
   tva: string;
 }
 
@@ -35,6 +68,7 @@ export interface SavedPayslip {
   period: string;
   salaryBrut: number;
   net: number;
+  netAPayer: number;
   maladieHours: number;
   results: PayrollResult;
   createdAt: string;
@@ -45,15 +79,12 @@ export type AppView = "simulator" | "history" | "dashboard";
 /* ─── State ─── */
 
 interface PayrollState {
-  // Navigation
   view: AppView;
   setView: (v: AppView) => void;
 
-  // Company
   company: CompanyData;
   setCompany: (data: Partial<CompanyData>) => void;
 
-  // Employees
   employees: Employee[];
   selectedEmployeeId: string | null;
   addEmployee: (name?: string) => void;
@@ -61,17 +92,14 @@ interface PayrollState {
   selectEmployee: (id: string) => void;
   updateEmployee: (id: string, data: Partial<Employee>) => void;
 
-  // Current simulation
   maladieHours: number;
   setMaladieHours: (v: number) => void;
   period: string;
   setPeriod: (v: string) => void;
 
-  // Results (live)
   results: PayrollResult | null;
   recalculate: () => void;
 
-  // Payslip history
   payslips: SavedPayslip[];
   savePayslip: () => void;
   deletePayslip: (id: string) => void;
@@ -89,12 +117,32 @@ function createEmptyEmployee(name?: string): Employee {
     name: name || "",
     role: "",
     ssn: "",
+    numSecSociale: "",
     entryDate: "",
+    dateAnciennete: "",
     taxClass: "1",
     salaryMode: "monthly",
     monthlyGross: 0,
     hourlyRate: 0,
-    hoursWorked: STANDARD_MONTHLY_HOURS,
+    hoursWorked: LUX.standardMonthlyHours,
+    degreeOccupation: 40,
+    overtimeHours: 0,
+    overtimeRate: 1.4,
+    fraisDeplacement: 0,
+    chequesRepas: 0,
+    autresAvantages: 0,
+    autresDeductions: 0,
+    CIS: defaultCIS("1"),
+    CIP: 0,
+    CIM: 0,
+    CISSM: 0,
+    index: LUX.index,
+    congesAnnuels: 26,
+    congesPris: 0,
+    feriados: 0,
+    recuperation: 0,
+    repos: 0,
+    maladieDays: 0,
   };
 }
 
@@ -105,7 +153,18 @@ function buildInput(emp: Employee, maladieHours: number): PayrollInput {
     hourlyRate: emp.hourlyRate,
     hoursWorked: emp.hoursWorked,
     maladieHours,
+    overtimeHours: emp.overtimeHours,
+    overtimeRate: emp.overtimeRate,
     taxClass: emp.taxClass,
+    CIS: emp.CIS,
+    CIP: emp.CIP,
+    CIM: emp.CIM,
+    CISSM: emp.CISSM,
+    fraisDeplacement: emp.fraisDeplacement,
+    chequesRepas: emp.chequesRepas,
+    autresAvantages: emp.autresAvantages,
+    autresDeductions: emp.autresDeductions,
+    index: emp.index,
   };
 }
 
@@ -123,15 +182,12 @@ function calcForEmployee(emp: Employee | undefined, maladieHours: number): Payro
 export const usePayrollStore = create<PayrollState>()(
   persist(
     (set, get) => ({
-      // --- Navigation ---
       view: "simulator",
       setView: (view) => set({ view }),
 
-      // --- Company ---
-      company: { name: "", address: "", tva: "" },
+      company: { name: "", address: "", city: "", tva: "" },
       setCompany: (data) => set({ company: { ...get().company, ...data } }),
 
-      // --- Employees ---
       employees: [],
       selectedEmployeeId: null,
 
@@ -169,14 +225,12 @@ export const usePayrollStore = create<PayrollState>()(
           e.id === id ? { ...e, ...data } : e,
         );
         set({ employees });
-        // Recalculate if this is the selected employee
         if (get().selectedEmployeeId === id) {
           const emp = employees.find((e) => e.id === id);
           set({ results: calcForEmployee(emp, get().maladieHours) });
         }
       },
 
-      // --- Current simulation ---
       maladieHours: 0,
       setMaladieHours: (maladieHours) => {
         set({ maladieHours });
@@ -187,14 +241,12 @@ export const usePayrollStore = create<PayrollState>()(
       period: "2026-02",
       setPeriod: (period) => set({ period }),
 
-      // --- Results ---
       results: null,
       recalculate: () => {
         const emp = get().employees.find((e) => e.id === get().selectedEmployeeId);
         set({ results: calcForEmployee(emp, get().maladieHours) });
       },
 
-      // --- Payslip history ---
       payslips: [],
 
       savePayslip: () => {
@@ -209,6 +261,7 @@ export const usePayrollStore = create<PayrollState>()(
           period,
           salaryBrut: results.salaryBrut,
           net: results.net,
+          netAPayer: results.netAPayer,
           maladieHours,
           results,
           createdAt: new Date().toISOString(),
@@ -222,7 +275,7 @@ export const usePayrollStore = create<PayrollState>()(
     }),
     {
       name: "luxpayroll-store",
-      version: 2,
+      version: 3, // bumped from 2 for new schema
     },
   ),
 );

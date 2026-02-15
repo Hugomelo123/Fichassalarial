@@ -3,9 +3,31 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { HeartPulse } from "lucide-react";
+import { ChevronDown, HeartPulse, Clock, CreditCard, Briefcase, Palmtree, TrendingUp } from "lucide-react";
 import { usePayrollStore } from "@/store/usePayrollStore";
-import { STANDARD_MONTHLY_HOURS } from "@/utils/calculations";
+import { defaultCIS, autoCISSM, LUX } from "@/utils/calculations";
+import { useState } from "react";
+
+/* ── Collapsible Section ── */
+function Section({ title, icon: Icon, children, defaultOpen = false }: {
+  title: string; icon: typeof Clock; children: React.ReactNode; defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-xl bg-slate-50/50 ring-1 ring-slate-100">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-left"
+      >
+        <Icon className="h-3.5 w-3.5 text-slate-400" />
+        <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{title}</span>
+        <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="px-4 pb-4 pt-1 space-y-3">{children}</div>}
+    </div>
+  );
+}
 
 export default function EmployeeForm() {
   const {
@@ -17,20 +39,26 @@ export default function EmployeeForm() {
   const emp = employees.find((e) => e.id === selectedEmployeeId);
   if (!emp) return null;
 
-  const update = (data: Record<string, unknown>) => updateEmployee(emp.id, data);
+  const update = (data: Record<string, unknown>) => {
+    // Auto-update CIS when tax class changes
+    if ("taxClass" in data) {
+      const newClass = data.taxClass as string;
+      data.CIS = defaultCIS(newClass);
+    }
+    updateEmployee(emp.id, data);
+  };
+
+  const grossMensuel = emp.salaryMode === "hourly"
+    ? emp.hourlyRate * emp.hoursWorked
+    : emp.monthlyGross;
 
   return (
-    <div className="space-y-5">
-      {/* Period */}
+    <div className="space-y-4">
+      {/* ── Period + Tax class ── */}
       <div className="flex items-end gap-3">
         <div className="flex-1">
-          <Label className="text-[11px] text-slate-500">Periode de reference</Label>
-          <Input
-            type="month"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            className="mt-1 h-9 text-sm"
-          />
+          <Label className="text-[11px] text-slate-500">Periode</Label>
+          <Input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} className="mt-1 h-9 text-sm" />
         </div>
         <div className="flex-1">
           <Label className="text-[11px] text-slate-500">Classe d'impot</Label>
@@ -43,10 +71,14 @@ export default function EmployeeForm() {
             </SelectContent>
           </Select>
         </div>
+        <div className="w-24">
+          <Label className="text-[11px] text-slate-500">Indice</Label>
+          <Input type="number" step="0.01" value={emp.index || ""} onChange={(e) => update({ index: parseFloat(e.target.value) || LUX.index })} className="mt-1 h-9 font-mono text-sm" />
+        </div>
       </div>
 
-      {/* Identity row */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* ── Identity ── */}
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <Label className="text-[11px] text-slate-500">Nom complet</Label>
           <Input value={emp.name} onChange={(e) => update({ name: e.target.value })} placeholder="Jean Dupont" className="mt-1 h-9 text-sm" />
@@ -55,13 +87,35 @@ export default function EmployeeForm() {
           <Label className="text-[11px] text-slate-500">Fonction</Label>
           <Input value={emp.role} onChange={(e) => update({ role: e.target.value })} placeholder="Comptable" className="mt-1 h-9 text-sm" />
         </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
         <div>
           <Label className="text-[11px] text-slate-500">Matricule</Label>
-          <Input value={emp.ssn} onChange={(e) => update({ ssn: e.target.value })} placeholder="19850315-XXX" className="mt-1 h-9 font-mono text-sm" />
+          <Input value={emp.ssn} onChange={(e) => update({ ssn: e.target.value })} placeholder="DEMO-500700" className="mt-1 h-9 font-mono text-sm" />
+        </div>
+        <div>
+          <Label className="text-[11px] text-slate-500">N° Sec. Sociale</Label>
+          <Input value={emp.numSecSociale} onChange={(e) => update({ numSecSociale: e.target.value })} placeholder="20000101" className="mt-1 h-9 font-mono text-sm" />
+        </div>
+        <div>
+          <Label className="text-[11px] text-slate-500">Degre (h/sem)</Label>
+          <Input type="number" value={emp.degreeOccupation || ""} onChange={(e) => update({ degreeOccupation: parseFloat(e.target.value) || 40 })} className="mt-1 h-9 text-sm" />
         </div>
       </div>
 
-      {/* Salary mode */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-[11px] text-slate-500">Date d'entree</Label>
+          <Input type="date" value={emp.entryDate} onChange={(e) => update({ entryDate: e.target.value })} className="mt-1 h-9 text-sm" />
+        </div>
+        <div>
+          <Label className="text-[11px] text-slate-500">Date d'anciennete</Label>
+          <Input type="date" value={emp.dateAnciennete} onChange={(e) => update({ dateAnciennete: e.target.value })} className="mt-1 h-9 text-sm" />
+        </div>
+      </div>
+
+      {/* ── Salary mode ── */}
       <div>
         <Label className="text-[11px] text-slate-500">Mode de remuneration</Label>
         <div className="mt-1 flex rounded-lg bg-slate-100 p-0.5">
@@ -82,19 +136,13 @@ export default function EmployeeForm() {
         </div>
       </div>
 
-      {/* Salary inputs */}
+      {/* ── Salary inputs ── */}
       {emp.salaryMode === "monthly" ? (
         <div>
           <Label className="text-[11px] text-slate-500">Salaire brut mensuel</Label>
           <div className="relative mt-1">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">EUR</span>
-            <Input
-              type="number" step="0.01"
-              value={emp.monthlyGross || ""}
-              onChange={(e) => update({ monthlyGross: parseFloat(e.target.value) || 0 })}
-              placeholder="0.00"
-              className="h-12 pl-12 font-mono text-lg font-bold text-slate-800"
-            />
+            <Input type="number" step="0.01" value={emp.monthlyGross || ""} onChange={(e) => update({ monthlyGross: parseFloat(e.target.value) || 0 })} placeholder="0.00" className="h-12 pl-12 font-mono text-lg font-bold text-slate-800" />
           </div>
         </div>
       ) : (
@@ -108,37 +156,153 @@ export default function EmployeeForm() {
           </div>
           <div>
             <Label className="text-[11px] text-slate-500">Heures / mois</Label>
-            <div className="relative mt-1">
-              <Input type="number" value={emp.hoursWorked || ""} onChange={(e) => update({ hoursWorked: parseFloat(e.target.value) || 0 })} placeholder={String(STANDARD_MONTHLY_HOURS)} className="h-12 pr-8 font-mono text-lg font-bold text-slate-800" />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">h</span>
-            </div>
+            <Input type="number" value={emp.hoursWorked || ""} onChange={(e) => update({ hoursWorked: parseFloat(e.target.value) || 0 })} placeholder="176" className="mt-1 h-12 pr-8 font-mono text-lg font-bold text-slate-800" />
           </div>
         </div>
       )}
 
-      {emp.salaryMode === "hourly" && emp.hourlyRate > 0 && emp.hoursWorked > 0 && (
-        <div className="flex items-center justify-between rounded-xl bg-indigo-50 px-4 py-2.5 text-xs">
-          <span className="font-medium text-indigo-600">Brut mensuel calcule</span>
-          <span className="font-mono text-sm font-bold text-indigo-700">{(emp.hourlyRate * emp.hoursWorked).toFixed(2)} EUR</span>
+      {/* ── OVERTIME ── */}
+      <Section title="Heures supplementaires" icon={TrendingUp}>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-[11px] text-slate-500">Nb heures supp.</Label>
+            <Input type="number" min={0} value={emp.overtimeHours || ""} onChange={(e) => update({ overtimeHours: parseFloat(e.target.value) || 0 })} placeholder="0" className="mt-1 h-9 font-mono text-sm" />
+          </div>
+          <div>
+            <Label className="text-[11px] text-slate-500">Majoration (x)</Label>
+            <Select value={String(emp.overtimeRate)} onValueChange={(v) => update({ overtimeRate: parseFloat(v) })}>
+              <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1.25">+25% (x1.25)</SelectItem>
+                <SelectItem value="1.4">+40% (x1.40)</SelectItem>
+                <SelectItem value="1.5">+50% (x1.50)</SelectItem>
+                <SelectItem value="2">+100% (x2.00)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      )}
+        {emp.overtimeHours > 0 && (
+          <div className="flex items-center justify-between rounded-lg bg-indigo-50 px-3 py-2 text-xs">
+            <span className="text-indigo-600">Montant H.S.</span>
+            <span className="font-mono font-bold text-indigo-700">
+              {(emp.overtimeHours * (emp.salaryMode === "hourly" ? emp.hourlyRate : emp.monthlyGross / LUX.standardMonthlyHours) * emp.overtimeRate).toFixed(2)} EUR
+            </span>
+          </div>
+        )}
+      </Section>
 
-      {/* Maladie */}
-      <div className="rounded-xl bg-amber-50/50 p-4">
+      {/* ── MALADIE ── */}
+      <div className="rounded-xl bg-amber-50/50 p-4 ring-1 ring-amber-100">
         <div className="flex items-center gap-2 mb-2">
           <HeartPulse className="h-4 w-4 text-amber-500" />
-          <Label className="text-[11px] font-semibold text-amber-700">Absences maladie</Label>
+          <Label className="text-[11px] font-semibold text-amber-700">Absences maladie (heures ce mois)</Label>
         </div>
-        <div className="relative">
-          <Input type="number" min={0} value={maladieHours || ""} onChange={(e) => setMaladieHours(parseFloat(e.target.value) || 0)} placeholder="0" className="h-9 pr-8 font-mono text-sm border-amber-200 bg-white" />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-amber-400">h</span>
-        </div>
+        <Input type="number" min={0} value={maladieHours || ""} onChange={(e) => setMaladieHours(parseFloat(e.target.value) || 0)} placeholder="0" className="h-9 pr-8 font-mono text-sm border-amber-200 bg-white" />
         {maladieHours > 0 && (
           <p className="mt-1.5 text-[11px] text-amber-600">
-            {maladieHours}h = {(maladieHours / 8).toFixed(1)} jour(s) — maintien 100 % employeur
+            {maladieHours}h = {(maladieHours / 8).toFixed(1)} jour(s) — maintien 100% employeur (77j max)
           </p>
         )}
       </div>
+
+      {/* ── AVANTAGES & DEDUCTIONS ── */}
+      <Section title="Avantages & Deductions" icon={Briefcase}>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-[11px] text-slate-500">Frais de deplacement</Label>
+            <Input type="number" step="0.01" min={0} value={emp.fraisDeplacement || ""} onChange={(e) => update({ fraisDeplacement: parseFloat(e.target.value) || 0 })} placeholder="0.00" className="mt-1 h-9 font-mono text-sm" />
+          </div>
+          <div>
+            <Label className="text-[11px] text-slate-500">Cheques repas</Label>
+            <Input type="number" step="0.01" min={0} value={emp.chequesRepas || ""} onChange={(e) => update({ chequesRepas: parseFloat(e.target.value) || 0 })} placeholder="0.00" className="mt-1 h-9 font-mono text-sm" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-[11px] text-slate-500">Autres avantages (+)</Label>
+            <Input type="number" step="0.01" min={0} value={emp.autresAvantages || ""} onChange={(e) => update({ autresAvantages: parseFloat(e.target.value) || 0 })} placeholder="0.00" className="mt-1 h-9 font-mono text-sm" />
+          </div>
+          <div>
+            <Label className="text-[11px] text-slate-500">Autres deductions (-)</Label>
+            <Input type="number" step="0.01" min={0} value={emp.autresDeductions || ""} onChange={(e) => update({ autresDeductions: parseFloat(e.target.value) || 0 })} placeholder="0.00" className="mt-1 h-9 font-mono text-sm" />
+          </div>
+        </div>
+      </Section>
+
+      {/* ── CREDITS FISCAUX ── */}
+      <Section title="Instructions fiscales" icon={CreditCard}>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-[11px] text-slate-500">CIS (Salarie)</Label>
+            <Input type="number" step="0.01" value={emp.CIS || ""} onChange={(e) => update({ CIS: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
+            <p className="mt-0.5 text-[9px] text-slate-400">Defaut: {defaultCIS(emp.taxClass)} EUR/mois</p>
+          </div>
+          <div>
+            <Label className="text-[11px] text-slate-500">CIP (Pensionnes)</Label>
+            <Input type="number" step="0.01" value={emp.CIP || ""} onChange={(e) => update({ CIP: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-[11px] text-slate-500">CIM (Monoparental)</Label>
+            <Input type="number" step="0.01" value={emp.CIM || ""} onChange={(e) => update({ CIM: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
+          </div>
+          <div>
+            <Label className="text-[11px] text-slate-500">CISSM (Sal. minimum)</Label>
+            <Input type="number" step="0.01" value={emp.CISSM || ""} onChange={(e) => update({ CISSM: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
+            {grossMensuel > 0 && grossMensuel <= LUX.ssmQualifie && (
+              <button
+                type="button"
+                onClick={() => update({ CISSM: autoCISSM(grossMensuel) })}
+                className="mt-1 text-[9px] font-medium text-indigo-500 hover:text-indigo-700"
+              >
+                Auto-calculer ({autoCISSM(grossMensuel).toFixed(2)} EUR)
+              </button>
+            )}
+          </div>
+        </div>
+        <p className="text-[9px] text-slate-400">
+          Credits mensuels appliques a la retenue d'impot sur le salaire.
+        </p>
+      </Section>
+
+      {/* ── CONGES & ABSENCES ── */}
+      <Section title="Conges & Absences (annuels)" icon={Palmtree}>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <Label className="text-[11px] text-slate-500">Conges annuels</Label>
+            <Input type="number" min={0} value={emp.congesAnnuels || ""} onChange={(e) => update({ congesAnnuels: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+          </div>
+          <div>
+            <Label className="text-[11px] text-slate-500">Conges pris</Label>
+            <Input type="number" min={0} value={emp.congesPris || ""} onChange={(e) => update({ congesPris: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+          </div>
+          <div>
+            <Label className="text-[11px] text-emerald-600 font-semibold">Solde</Label>
+            <div className="mt-1 flex h-9 items-center rounded-md bg-emerald-50 px-3 font-mono text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">
+              {emp.congesAnnuels - emp.congesPris} j
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          <div>
+            <Label className="text-[11px] text-slate-500">Feries</Label>
+            <Input type="number" min={0} value={emp.feriados || ""} onChange={(e) => update({ feriados: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+          </div>
+          <div>
+            <Label className="text-[11px] text-slate-500">Recuperation</Label>
+            <Input type="number" min={0} value={emp.recuperation || ""} onChange={(e) => update({ recuperation: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+          </div>
+          <div>
+            <Label className="text-[11px] text-slate-500">Repos</Label>
+            <Input type="number" min={0} value={emp.repos || ""} onChange={(e) => update({ repos: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+          </div>
+          <div>
+            <Label className="text-[11px] text-slate-500">Maladie (j)</Label>
+            <Input type="number" min={0} value={emp.maladieDays || ""} onChange={(e) => update({ maladieDays: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+          </div>
+        </div>
+      </Section>
     </div>
   );
 }

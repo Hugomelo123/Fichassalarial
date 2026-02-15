@@ -12,7 +12,6 @@ function fmtD(iso: string) { return new Date(iso).toLocaleDateString("fr-LU",{da
 export default function PayslipHistory() {
   const { payslips, deletePayslip, employees, selectEmployee, setView } = usePayrollStore();
 
-  // Group by employee
   const grouped = payslips.reduce<Record<string, SavedPayslip[]>>((a, p) => {
     (a[p.employeeId] ||= []).push(p);
     return a;
@@ -42,10 +41,9 @@ export default function PayslipHistory() {
       ) : (
         Object.entries(grouped).map(([empId, slips]) => {
           const emp = employees.find(e => e.id === empId);
-          const total = slips.reduce((s, p) => s + p.net, 0);
+          const total = slips.reduce((s, p) => s + (p.netAPayer || p.net), 0);
           return (
             <div key={empId} className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
-              {/* Employee header */}
               <div className="flex items-center justify-between bg-slate-50 px-5 py-3 border-b border-slate-100">
                 <button onClick={() => goToEmployee(empId)} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600">
@@ -61,7 +59,6 @@ export default function PayslipHistory() {
                 </button>
               </div>
 
-              {/* Payslips */}
               <div className="divide-y divide-slate-50">
                 {slips.map((slip) => (
                   <div key={slip.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition-colors">
@@ -83,8 +80,8 @@ export default function PayslipHistory() {
                         <p className="font-mono text-xs text-slate-500">{slip.salaryBrut.toFixed(2)}</p>
                       </div>
                       <div className="text-right min-w-[80px]">
-                        <p className="text-[9px] uppercase text-emerald-500">Net</p>
-                        <p className="font-mono text-sm font-bold text-emerald-700">{slip.net.toFixed(2)}</p>
+                        <p className="text-[9px] uppercase text-emerald-500">Net a payer</p>
+                        <p className="font-mono text-sm font-bold text-emerald-700">{(slip.netAPayer || slip.net).toFixed(2)}</p>
                       </div>
                       <button onClick={() => deletePayslip(slip.id)} className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors">
                         <Trash2 className="h-3.5 w-3.5" />

@@ -8,7 +8,8 @@ export default function AnnualSummary() {
     { label: "Brut annuel", value: results.salaryBrut * 12, color: "text-slate-900" },
     { label: "Cotisations", value: -(results.totalSocial * 12), color: "text-red-500" },
     { label: "Impots", value: -(results.impots * 12), color: "text-orange-500" },
-    { label: "Net annuel", value: results.net * 12, color: "text-emerald-700 font-bold" },
+    { label: "Credits", value: results.totalCredits * 12, color: "text-emerald-600" },
+    { label: "Net a payer", value: results.netAPayer * 12, color: "text-emerald-700 font-bold" },
   ];
 
   return (
@@ -17,7 +18,7 @@ export default function AnnualSummary() {
         <div className="h-1.5 w-1.5 rounded-full bg-teal-500" />
         Projection annuelle (x12)
       </h3>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-2">
         {items.map((it) => (
           <div key={it.label} className="rounded-xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
             <p className="text-[9px] font-medium uppercase text-slate-400">{it.label}</p>
