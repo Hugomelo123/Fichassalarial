@@ -1,16 +1,25 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
   calculateLuxSalary,
   PayrollResult,
   STANDARD_MONTHLY_HOURS,
+  type PayrollInput,
 } from "../utils/calculations";
 
-export interface EmployeeData {
+/* ─── Types ─── */
+
+export interface Employee {
+  id: string;
   name: string;
   role: string;
   ssn: string;
   entryDate: string;
   taxClass: string;
+  salaryMode: "monthly" | "hourly";
+  monthlyGross: number;
+  hourlyRate: number;
+  hoursWorked: number;
 }
 
 export interface CompanyData {
@@ -19,117 +28,201 @@ export interface CompanyData {
   tva: string;
 }
 
-export type SalaryMode = "monthly" | "hourly";
+export interface SavedPayslip {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  period: string;
+  salaryBrut: number;
+  net: number;
+  maladieHours: number;
+  results: PayrollResult;
+  createdAt: string;
+}
+
+export type AppView = "simulator" | "history" | "dashboard";
+
+/* ─── State ─── */
 
 interface PayrollState {
-  // --- Data ---
-  employee: EmployeeData;
+  // Navigation
+  view: AppView;
+  setView: (v: AppView) => void;
+
+  // Company
   company: CompanyData;
-
-  // Salary
-  salaryMode: SalaryMode;
-  monthlyGross: number;
-  hourlyRate: number;
-  hoursWorked: number;
-
-  // Absences
-  maladieHours: number;
-
-  // Period
-  period: string; // e.g. "2026-02"
-
-  // Results
-  results: PayrollResult | null;
-
-  // --- Actions ---
-  setEmployee: (data: Partial<EmployeeData>) => void;
   setCompany: (data: Partial<CompanyData>) => void;
-  setSalaryMode: (mode: SalaryMode) => void;
-  setMonthlyGross: (v: number) => void;
-  setHourlyRate: (v: number) => void;
-  setHoursWorked: (v: number) => void;
+
+  // Employees
+  employees: Employee[];
+  selectedEmployeeId: string | null;
+  addEmployee: (name?: string) => void;
+  removeEmployee: (id: string) => void;
+  selectEmployee: (id: string) => void;
+  updateEmployee: (id: string, data: Partial<Employee>) => void;
+
+  // Current simulation
+  maladieHours: number;
   setMaladieHours: (v: number) => void;
+  period: string;
   setPeriod: (v: string) => void;
+
+  // Results (live)
+  results: PayrollResult | null;
   recalculate: () => void;
+
+  // Payslip history
+  payslips: SavedPayslip[];
+  savePayslip: () => void;
+  deletePayslip: (id: string) => void;
 }
 
-function buildInput(state: PayrollState) {
+/* ─── Helpers ─── */
+
+function uid(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function createEmptyEmployee(name?: string): Employee {
   return {
-    salaryMode: state.salaryMode,
-    monthlyGross: state.monthlyGross,
-    hourlyRate: state.hourlyRate,
-    hoursWorked: state.hoursWorked,
-    maladieHours: state.maladieHours,
-    taxClass: state.employee.taxClass,
-  };
-}
-
-export const usePayrollStore = create<PayrollState>((set, get) => ({
-  employee: {
-    name: "",
+    id: uid(),
+    name: name || "",
     role: "",
     ssn: "",
     entryDate: "",
     taxClass: "1",
-  },
-  company: {
-    name: "",
-    address: "",
-    tva: "",
-  },
+    salaryMode: "monthly",
+    monthlyGross: 0,
+    hourlyRate: 0,
+    hoursWorked: STANDARD_MONTHLY_HOURS,
+  };
+}
 
-  salaryMode: "monthly",
-  monthlyGross: 0,
-  hourlyRate: 0,
-  hoursWorked: STANDARD_MONTHLY_HOURS,
-  maladieHours: 0,
-  period: "2026-02",
-  results: null,
+function buildInput(emp: Employee, maladieHours: number): PayrollInput {
+  return {
+    salaryMode: emp.salaryMode,
+    monthlyGross: emp.monthlyGross,
+    hourlyRate: emp.hourlyRate,
+    hoursWorked: emp.hoursWorked,
+    maladieHours,
+    taxClass: emp.taxClass,
+  };
+}
 
-  setEmployee: (data) => {
-    const employee = { ...get().employee, ...data };
-    set({ employee });
-    // Recalculate if tax class changed
-    const results = calculateLuxSalary({ ...buildInput({ ...get(), employee }), taxClass: employee.taxClass });
-    set({ results });
-  },
+function calcForEmployee(emp: Employee | undefined, maladieHours: number): PayrollResult | null {
+  if (!emp) return null;
+  const input = buildInput(emp, maladieHours);
+  const hasSalary =
+    emp.salaryMode === "monthly" ? emp.monthlyGross > 0 : emp.hourlyRate > 0 && emp.hoursWorked > 0;
+  if (!hasSalary) return null;
+  return calculateLuxSalary(input);
+}
 
-  setCompany: (data) => set({ company: { ...get().company, ...data } }),
+/* ─── Store ─── */
 
-  setSalaryMode: (salaryMode) => {
-    set({ salaryMode });
-    const state = get();
-    set({ results: calculateLuxSalary(buildInput({ ...state, salaryMode })) });
-  },
+export const usePayrollStore = create<PayrollState>()(
+  persist(
+    (set, get) => ({
+      // --- Navigation ---
+      view: "simulator",
+      setView: (view) => set({ view }),
 
-  setMonthlyGross: (monthlyGross) => {
-    set({ monthlyGross });
-    const state = get();
-    set({ results: calculateLuxSalary(buildInput({ ...state, monthlyGross })) });
-  },
+      // --- Company ---
+      company: { name: "", address: "", tva: "" },
+      setCompany: (data) => set({ company: { ...get().company, ...data } }),
 
-  setHourlyRate: (hourlyRate) => {
-    set({ hourlyRate });
-    const state = get();
-    set({ results: calculateLuxSalary(buildInput({ ...state, hourlyRate })) });
-  },
+      // --- Employees ---
+      employees: [],
+      selectedEmployeeId: null,
 
-  setHoursWorked: (hoursWorked) => {
-    set({ hoursWorked });
-    const state = get();
-    set({ results: calculateLuxSalary(buildInput({ ...state, hoursWorked })) });
-  },
+      addEmployee: (name) => {
+        const emp = createEmptyEmployee(name);
+        const employees = [...get().employees, emp];
+        set({ employees, selectedEmployeeId: emp.id, results: null, maladieHours: 0 });
+      },
 
-  setMaladieHours: (maladieHours) => {
-    set({ maladieHours });
-    const state = get();
-    set({ results: calculateLuxSalary(buildInput({ ...state, maladieHours })) });
-  },
+      removeEmployee: (id) => {
+        const employees = get().employees.filter((e) => e.id !== id);
+        const sel = get().selectedEmployeeId === id
+          ? (employees[0]?.id ?? null)
+          : get().selectedEmployeeId;
+        const emp = employees.find((e) => e.id === sel);
+        set({
+          employees,
+          selectedEmployeeId: sel,
+          results: calcForEmployee(emp, 0),
+          maladieHours: 0,
+        });
+      },
 
-  setPeriod: (period) => set({ period }),
+      selectEmployee: (id) => {
+        const emp = get().employees.find((e) => e.id === id);
+        set({
+          selectedEmployeeId: id,
+          maladieHours: 0,
+          results: calcForEmployee(emp, 0),
+        });
+      },
 
-  recalculate: () => {
-    const state = get();
-    set({ results: calculateLuxSalary(buildInput(state)) });
-  },
-}));
+      updateEmployee: (id, data) => {
+        const employees = get().employees.map((e) =>
+          e.id === id ? { ...e, ...data } : e,
+        );
+        set({ employees });
+        // Recalculate if this is the selected employee
+        if (get().selectedEmployeeId === id) {
+          const emp = employees.find((e) => e.id === id);
+          set({ results: calcForEmployee(emp, get().maladieHours) });
+        }
+      },
+
+      // --- Current simulation ---
+      maladieHours: 0,
+      setMaladieHours: (maladieHours) => {
+        set({ maladieHours });
+        const emp = get().employees.find((e) => e.id === get().selectedEmployeeId);
+        set({ results: calcForEmployee(emp, maladieHours) });
+      },
+
+      period: "2026-02",
+      setPeriod: (period) => set({ period }),
+
+      // --- Results ---
+      results: null,
+      recalculate: () => {
+        const emp = get().employees.find((e) => e.id === get().selectedEmployeeId);
+        set({ results: calcForEmployee(emp, get().maladieHours) });
+      },
+
+      // --- Payslip history ---
+      payslips: [],
+
+      savePayslip: () => {
+        const { selectedEmployeeId, employees, results, period, maladieHours } = get();
+        const emp = employees.find((e) => e.id === selectedEmployeeId);
+        if (!emp || !results) return;
+
+        const payslip: SavedPayslip = {
+          id: uid(),
+          employeeId: emp.id,
+          employeeName: emp.name || "Sans nom",
+          period,
+          salaryBrut: results.salaryBrut,
+          net: results.net,
+          maladieHours,
+          results,
+          createdAt: new Date().toISOString(),
+        };
+        set({ payslips: [payslip, ...get().payslips] });
+      },
+
+      deletePayslip: (id) => {
+        set({ payslips: get().payslips.filter((p) => p.id !== id) });
+      },
+    }),
+    {
+      name: "luxpayroll-store",
+      version: 2,
+    },
+  ),
+);
