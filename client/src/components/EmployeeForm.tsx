@@ -270,9 +270,14 @@ export default function EmployeeForm() {
 
       {/* ── CONGES & ABSENCES ── */}
       <Section title="Conges & Absences (heures annuelles)" icon={Palmtree}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <div>
-            <Label className="text-[11px] text-slate-500">Conges annuels (h)</Label>
+            <Label className="text-[11px] text-slate-500">Report N-1 (h)</Label>
+            <Input type="number" min={0} value={(emp.congesReport ?? 0) || ""} onChange={(e) => update({ congesReport: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
+            <p className="mt-0.5 text-[9px] text-slate-400">Heures reportees</p>
+          </div>
+          <div>
+            <Label className="text-[11px] text-slate-500">Droit annuel (h)</Label>
             <Input type="number" min={0} value={emp.congesAnnuels || ""} onChange={(e) => update({ congesAnnuels: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
             <p className="mt-0.5 text-[9px] text-slate-400">26j x 8h = 208h</p>
           </div>
@@ -281,9 +286,9 @@ export default function EmployeeForm() {
             <Input type="number" min={0} value={emp.congesPris || ""} onChange={(e) => update({ congesPris: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
           </div>
           <div>
-            <Label className="text-[11px] text-emerald-600 font-semibold">Solde</Label>
+            <Label className="text-[11px] text-emerald-600 font-semibold">Solde (h)</Label>
             <div className="mt-1 flex h-9 items-center rounded-md bg-emerald-50 px-3 font-mono text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">
-              {emp.congesAnnuels - emp.congesPris} h
+              {((emp.congesReport ?? 0) + (emp.congesAnnuels ?? 0) - (emp.congesPris ?? 0))} h
             </div>
           </div>
         </div>

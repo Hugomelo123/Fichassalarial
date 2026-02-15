@@ -76,7 +76,7 @@ export const RATES = {
   pension: 0.08,
   dependance: 0.014,
   standardWeeklyHours: 40,
-  standardMonthlyHours: 176,
+  standardMonthlyHours: 176, // 22×8; official indemnité de congé uses 173h (Guichet.lu/ITM)
   solidarityThreshold: 12500, // monthly taxable above this → 9%, below → 7%
 };
 

@@ -47,7 +47,8 @@ export interface Employee {
   index: number;
 
   // Leave tracking (annual counters — in HOURS)
-  congesAnnuels: number;  // total annual leave hours
+  congesReport: number;   // report N-1 (heures reportées)
+  congesAnnuels: number;  // droit annuel (total annual leave hours)
   congesPris: number;     // leave hours taken
   feriados: number;       // public holidays hours
   recuperation: number;   // recovery hours
@@ -146,6 +147,7 @@ function createEmptyEmployee(name?: string, year?: number): Employee {
     CISSM: 0, // 0 = auto
     CICO2: 0, // 0 = auto
     index: p.index,
+    congesReport: 0,   // heures reportées N-1
     congesAnnuels: 208, // 26 days * 8h
     congesPris: 0,
     feriados: 0,
@@ -288,7 +290,7 @@ export const usePayrollStore = create<PayrollState>()(
     }),
     {
       name: "luxpayroll-store",
-      version: 7, // bumped: 2026 official params (index 968.04, SSM, CIS, CI-CO2 default)
+      version: 8, // bumped: congesReport + Situation des congés table (Report/Droit/Pris/Solde)
     },
   ),
 );

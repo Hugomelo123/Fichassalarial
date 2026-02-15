@@ -16,6 +16,7 @@ interface EmployeeData {
   hoursWorked: number;
   overtimeHours: number;
   overtimeRate: number;
+  congesReport?: number;
   congesAnnuels: number;
   congesPris: number;
   feriados: number;
@@ -418,104 +419,75 @@ export const generatePayslipPDF = (
   annItem(col3X, ay + ls * 6, "A PAYER", N(results.netAPayer));
 
   /* ══════════════════════════════════════════
-     SECTION 5 — CONGÉS & ABSENCES (heures)
+     SECTION 5 — SITUATION DES CONGÉS (Report, Droit, Pris, Solde)
      ══════════════════════════════════════════ */
   y += annH + 4;
 
   doc.setFontSize(6.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(BK);
-  doc.text("CONGES & ABSENCES (cumul annuel en heures)", L, y);
+  doc.text("SITUATION DES CONGES", L, y);
 
   y += 2;
-  const leaveH = 16;
+  const report = employee.congesReport ?? 0;
+  const droit = employee.congesAnnuels ?? 208;
+  const pris = employee.congesPris ?? 0;
+  const solde = Math.max(0, report + droit - pris);
+  const tauxH = results.tauxHoraire || 0;
+  const toEur = (h: number) => (h * tauxH).toFixed(2);
+
+  const colW = (W - 28) / 4; // 4 columns: Report, Droit, Pris, Solde; 28 for row labels
+  let cx = L + 3;
+  const rowH = 5;
+
+  const rows = [
+    { lb: "Mensuel", r: report / 12, d: droit / 12, p: pris / 12, s: solde / 12 },
+    { lb: "Annuel", r: report, d: droit, p: pris, s: solde },
+  ];
+  if ((employee.recuperation ?? 0) > 0) {
+    rows.push({ lb: "Recup.", r: 0, d: employee.recuperation!, p: 0, s: employee.recuperation! });
+  }
+
+  const leaveH = rowH * (1 + rows.length);
   doc.rect(L, y, W, leaveH);
-
-  // Divider at midpoint
-  doc.setDrawColor(LC);
-  doc.line(M, y, M, y + leaveH);
-
-  doc.setFontSize(6.5);
-  const solde = employee.congesAnnuels - employee.congesPris;
-
-  // Left half
-  let lx = L + 3;
-  let ly = y + 4.5;
-
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(GR);
-  doc.text("Conges annuels :", lx, ly);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(BK);
-  doc.text(`${employee.congesAnnuels} h`, lx + 30, ly);
-
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(GR);
-  doc.text("Pris :", lx + 45, ly);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(BK);
-  doc.text(`${employee.congesPris} h`, lx + 55, ly);
-
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(GR);
-  doc.text("Solde :", lx + 68, ly);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(GREEN);
-  doc.text(`${solde} h`, lx + 80, ly);
-
-  ly += 4;
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(GR);
-  doc.text("Feries :", lx, ly);
-  doc.setTextColor(BK);
-  doc.text(`${employee.feriados} h`, lx + 15, ly);
-
-  doc.setTextColor(GR);
-  doc.text("Recup. :", lx + 30, ly);
-  doc.setTextColor(BK);
-  doc.text(`${employee.recuperation} h`, lx + 46, ly);
-
-  ly += 4;
-  doc.setTextColor(GR);
-  doc.text("Repos :", lx, ly);
-  doc.setTextColor(BK);
-  doc.text(`${employee.repos} h`, lx + 15, ly);
-
-  doc.setTextColor(GR);
-  doc.text("Maladie :", lx + 30, ly);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(employee.maladieHeures > 0 ? "#d97706" : BK);
-  doc.text(`${employee.maladieHeures} h`, lx + 46, ly);
-
-  // Right half — summary box
-  const rx = M + 4;
-  let ry = y + 4.5;
-
-  doc.setFontSize(6);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(GR);
-  doc.text("Heures normales (mois) :", rx, ry);
-  doc.setTextColor(BK);
-  doc.text(`${N(results.heuresNormales)}`, rx + 42, ry);
-
-  ry += 3.5;
-  doc.setTextColor(GR);
-  doc.text("Heures maladie (mois) :", rx, ry);
-  doc.setTextColor(employee.maladieHeures > 0 ? "#d97706" : BK);
-  doc.text(`${N(results.heuresMaladie)}`, rx + 42, ry);
-
-  ry += 3.5;
-  doc.setTextColor(GR);
-  doc.text("Heures suppl. (mois) :", rx, ry);
-  doc.setTextColor(BK);
-  doc.text(`${N(results.heuresSupp)}`, rx + 42, ry);
-
-  ry += 3.5;
+  doc.setFontSize(5.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(GR);
-  doc.text("Total heures (mois) :", rx, ry);
-  doc.setTextColor(BK);
-  doc.text(`${N(results.heuresTotales)}`, rx + 42, ry);
+  doc.text("", cx, y + 3.5);
+  cx += 22;
+  doc.text("Report", cx, y + 3.5);
+  cx += colW;
+  doc.text("Droit", cx, y + 3.5);
+  cx += colW;
+  doc.text("Pris", cx, y + 3.5);
+  cx += colW;
+  doc.text("Solde", cx, y + 3.5);
+
+  rows.forEach((row, i) => {
+    let ly = y + 3.5 + (i + 1) * rowH;
+    cx = L + 3;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(BK);
+    doc.text(row.lb, cx, ly);
+    cx += 22;
+    doc.setFont("helvetica", "normal");
+    doc.text(`${row.r.toFixed(2)} h  ${toEur(row.r)} EUR`, cx, ly);
+    cx += colW;
+    doc.text(`${row.d.toFixed(2)} h  ${toEur(row.d)} EUR`, cx, ly);
+    cx += colW;
+    doc.text(`${row.p.toFixed(2)} h  ${toEur(row.p)} EUR`, cx, ly);
+    cx += colW;
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(GREEN);
+    doc.text(`${row.s.toFixed(2)} h  ${toEur(row.s)} EUR`, cx, ly);
+    doc.setTextColor(BK);
+  });
+
+  y += leaveH + 2;
+  doc.setFontSize(5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(GR);
+  doc.text(`Feries: ${employee.feriados ?? 0} h  |  Repos: ${employee.repos ?? 0} h  |  Maladie: ${employee.maladieHeures ?? 0} h`, L, y);
 
   /* ══════════════════════════════════════════
      FOOTER

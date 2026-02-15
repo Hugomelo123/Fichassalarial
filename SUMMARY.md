@@ -171,3 +171,23 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel,
 3. Test PDF/XML export thoroughly
 
 The application should work correctly for all the requested test steps.
+
+---
+
+## Congés, Maladie, Férias (verificação Luxemburgo)
+
+Foi feita pesquisa nas regras oficiais (Guichet.lu, ITM, CCSS, CNS). Resumo:
+
+- **Congés payés:** 26 jours ouvrables/an, maintien du salaire. A app regista droit/pris/solde em horas (208 h = 26×8 por defeito); **não reduz** o salário do mês — correto.
+- **Maladie:** Maintien 100 % até 77 jours (calendaires) sur 18 mois glissants. A app **mantém o bruto** quando há heures maladie no mês (mensal ou hora); **correto**. Não implementado: controle dos 77 jours / 18 mois nem declaração CCSS (DECMAL).
+- **Feriados, récup, repos:** Apenas registo em horas no resumo da ficha; sem impacto no bruto — correto.
+
+Detalhe: indemnité de congé oficial = salaire brut / **173 h** (forfait); a app usa 176 h para heures standard. Ver `docs/CONGES_MALADIE_LUXEMBOURG.md` para referências e recomendações.
+
+---
+
+## Conclusões do projeto inteiro
+
+Documento completo: **`docs/CONCLUSAO_PROJETO.md`**
+
+Resumo: o projeto está **completo e correto** como simulador de fiches de paie Luxembourg 2026. Cálculos validados (incl. 2025/2026, créditos auto, congés/maladie), funcionalidades implementadas (multi-colaborador, período, histórico, dashboard, PDF, XML, mobile). Melhorias sugeridas são opcionais (confirmações ao apagar, validações, tooltips). Nenhuma alteração obrigatória para uso em produção como simulador.

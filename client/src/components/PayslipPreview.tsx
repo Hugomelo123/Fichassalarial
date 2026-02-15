@@ -243,23 +243,17 @@ export default function PayslipPreview() {
           </div>
         </div>
 
-        {/* ── Leave summary ── */}
+        {/* ── Situation des congés (tabela como referência) ── */}
         <div className="border-t border-slate-300 bg-white p-4">
           <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-400">
-            Conges & Absences (cumul annuel en heures)
+            Situation des congés
           </p>
-          <div className="grid grid-cols-4 gap-3">
-            <LeaveBox label="Conges annuels" total={emp.congesAnnuels} taken={emp.congesPris} unit="h" />
-            <LeaveBox label="Feries" total={null} taken={emp.feriados} unit="h" />
-            <LeaveBox label="Recuperation" total={null} taken={emp.recuperation} unit="h" />
-            <LeaveBox label="Repos" total={null} taken={emp.repos} unit="h" />
-          </div>
-          <div className="mt-2 grid grid-cols-4 gap-3">
-            <LeaveBox label="Maladie" total={null} taken={emp.maladieHeures} unit="h" warn />
-            <div className="col-span-3 flex items-center rounded bg-emerald-50 px-3 py-1.5 text-[10px] ring-1 ring-emerald-100">
-              <span className="text-emerald-600">Solde conges:</span>
-              <span className="ml-auto font-bold text-emerald-700">{emp.congesAnnuels - emp.congesPris} h</span>
-            </div>
+          <CongesTable emp={emp} tauxHoraire={results.tauxHoraire} />
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[9px] text-slate-500">
+            <span>Feries: {emp.feriados ?? 0} h</span>
+            <span>Récup.: {emp.recuperation ?? 0} h</span>
+            <span>Repos: {emp.repos ?? 0} h</span>
+            <span className={emp.maladieHeures > 0 ? "font-semibold text-amber-600" : ""}>Maladie: {emp.maladieHeures ?? 0} h</span>
           </div>
         </div>
 
@@ -304,13 +298,57 @@ function CreditRow2({ label, amount }: { label: string; amount: number }) {
   );
 }
 
-function LeaveBox({ label, total, taken, unit, warn }: { label: string; total: number | null; taken: number; unit: string; warn?: boolean }) {
+function CongesTable({ emp, tauxHoraire }: { emp: { congesReport?: number; congesAnnuels?: number; congesPris?: number; recuperation?: number }; tauxHoraire: number }) {
+  const report = emp.congesReport ?? 0;
+  const droit = emp.congesAnnuels ?? 208;
+  const pris = emp.congesPris ?? 0;
+  const solde = Math.max(0, report + droit - pris);
+  const recup = emp.recuperation ?? 0;
+
+  const toEur = (h: number) => (h * tauxHoraire).toFixed(2);
+
+  const rows = [
+    { label: "Mensuel", report: report / 12, droit: droit / 12, pris: pris / 12, solde: solde / 12 },
+    { label: "Annuel", report, droit, pris, solde },
+    ...(recup > 0 ? [{ label: "Récup.", report: 0, droit: recup, pris: 0, solde: recup }] : []),
+  ];
+
   return (
-    <div className={`rounded px-2.5 py-1.5 ring-1 ${warn && taken > 0 ? "bg-amber-50 ring-amber-100" : "bg-slate-50 ring-slate-100"}`}>
-      <p className="text-[8px] uppercase text-slate-400">{label}</p>
-      <p className={`text-[11px] font-bold ${warn && taken > 0 ? "text-amber-700" : "text-slate-700"}`}>
-        {total !== null ? `${taken} / ${total} ${unit}` : `${taken} ${unit}`}
-      </p>
+    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-slate-50/50">
+      <table className="w-full min-w-[400px] text-[10px]">
+        <thead>
+          <tr className="border-b border-slate-200 bg-slate-100/80">
+            <th className="px-3 py-2 text-left font-semibold text-slate-600"></th>
+            <th className="px-2 py-2 text-right font-semibold text-slate-600">Report</th>
+            <th className="px-2 py-2 text-right font-semibold text-slate-600">Droit</th>
+            <th className="px-2 py-2 text-right font-semibold text-slate-600">Pris</th>
+            <th className="px-2 py-2 text-right font-semibold text-emerald-700">Solde</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.label} className="border-b border-slate-100 last:border-0">
+              <td className="px-3 py-2 font-medium text-slate-600">{r.label}</td>
+              <td className="px-2 py-2 text-right font-mono">
+                <span className="text-slate-700">{r.report.toFixed(2)} h</span>
+                <span className="ml-1 text-slate-400">{toEur(r.report)} €</span>
+              </td>
+              <td className="px-2 py-2 text-right font-mono">
+                <span className="text-slate-700">{r.droit.toFixed(2)} h</span>
+                <span className="ml-1 text-slate-400">{toEur(r.droit)} €</span>
+              </td>
+              <td className="px-2 py-2 text-right font-mono">
+                <span className="text-slate-700">{r.pris.toFixed(2)} h</span>
+                <span className="ml-1 text-slate-400">{toEur(r.pris)} €</span>
+              </td>
+              <td className="px-2 py-2 text-right font-mono font-bold text-emerald-700">
+                <span>{r.solde.toFixed(2)} h</span>
+                <span className="ml-1">{toEur(r.solde)} €</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
