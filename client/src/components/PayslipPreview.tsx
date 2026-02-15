@@ -175,6 +175,7 @@ export default function PayslipPreview() {
             {results.CIP > 0 && <CreditRow2 label="Credit d'impots (CIP)" amount={results.CIP} />}
             {results.CIM > 0 && <CreditRow2 label="Credit d'impots (CIM)" amount={results.CIM} />}
             {results.CISSM > 0 && <CreditRow2 label="Credit d'impots (CISSM)" amount={results.CISSM} />}
+            {results.CICO2 > 0 && <CreditRow2 label="Credit d'impots (CI-CO2)" amount={results.CICO2} />}
 
             {/* Net */}
             <tr className="border-b border-slate-300 bg-slate-50">
@@ -244,19 +245,19 @@ export default function PayslipPreview() {
         {/* ── Leave summary ── */}
         <div className="border-t border-slate-300 bg-white p-4">
           <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-400">
-            Conges & Absences (cumul annuel)
+            Conges & Absences (cumul annuel en heures)
           </p>
           <div className="grid grid-cols-4 gap-3">
-            <LeaveBox label="Conges annuels" total={emp.congesAnnuels} taken={emp.congesPris} unit="j" />
-            <LeaveBox label="Feries" total={null} taken={emp.feriados} unit="j" />
-            <LeaveBox label="Recuperation" total={null} taken={emp.recuperation} unit="j" />
-            <LeaveBox label="Repos" total={null} taken={emp.repos} unit="j" />
+            <LeaveBox label="Conges annuels" total={emp.congesAnnuels} taken={emp.congesPris} unit="h" />
+            <LeaveBox label="Feries" total={null} taken={emp.feriados} unit="h" />
+            <LeaveBox label="Recuperation" total={null} taken={emp.recuperation} unit="h" />
+            <LeaveBox label="Repos" total={null} taken={emp.repos} unit="h" />
           </div>
           <div className="mt-2 grid grid-cols-4 gap-3">
-            <LeaveBox label="Maladie" total={null} taken={emp.maladieDays} unit="j" warn />
+            <LeaveBox label="Maladie" total={null} taken={emp.maladieHeures} unit="h" warn />
             <div className="col-span-3 flex items-center rounded bg-emerald-50 px-3 py-1.5 text-[10px] ring-1 ring-emerald-100">
               <span className="text-emerald-600">Solde conges:</span>
-              <span className="ml-auto font-bold text-emerald-700">{emp.congesAnnuels - emp.congesPris} jours</span>
+              <span className="ml-auto font-bold text-emerald-700">{emp.congesAnnuels - emp.congesPris} h</span>
             </div>
           </div>
         </div>

@@ -66,6 +66,7 @@ export const generateCCSSXML = (
           <CIP>${results.CIP.toFixed(2)}</CIP>
           <CIM>${results.CIM.toFixed(2)}</CIM>
           <CISSM>${results.CISSM.toFixed(2)}</CISSM>
+          <CICO2>${results.CICO2.toFixed(2)}</CICO2>
           <Total>${results.totalCredits.toFixed(2)}</Total>
         </TaxCredits>
         <NetSalary>${results.net.toFixed(2)}</NetSalary>

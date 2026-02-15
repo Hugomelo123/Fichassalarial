@@ -48,10 +48,11 @@ export interface PayrollInput {
   taxClass: string;
 
   // Fiscal credits (monthly)
-  CIS: number;  // Crédit d'Impôt Salarié
-  CIP: number;  // Crédit d'Impôt Pensionné
-  CIM: number;  // Crédit d'Impôt Monoparental
+  CIS: number;   // Crédit d'Impôt Salarié
+  CIP: number;   // Crédit d'Impôt Pensionné
+  CIM: number;   // Crédit d'Impôt Monoparental
   CISSM: number; // Crédit d'Impôt SSM
+  CICO2: number; // Crédit d'Impôt CO2
 
   // Avantages / Déductions
   fraisDeplacement: number;
@@ -97,6 +98,7 @@ export interface PayrollResult {
   CIP: number;
   CIM: number;
   CISSM: number;
+  CICO2: number;
   totalCredits: number;
 
   // Net before adjustments
@@ -144,7 +146,7 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
     salaryMode, monthlyGross, hourlyRate, hoursWorked, maladieHours,
     overtimeHours, overtimeRate,
     taxClass,
-    CIS, CIP, CIM, CISSM,
+    CIS, CIP, CIM, CISSM, CICO2,
     fraisDeplacement, chequesRepas, autresAvantages, autresDeductions,
     index,
   } = input;
@@ -206,7 +208,7 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
   const impots = round(Math.max(0, totalImposable * impotsRate));
 
   // ── Credits ──
-  const totalCredits = round(CIS + CIP + CIM + CISSM);
+  const totalCredits = round(CIS + CIP + CIM + CISSM + CICO2);
 
   // ── Net ──
   const net = round(totalImposable - impots + totalCredits);
@@ -242,6 +244,7 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
     CIP,
     CIM,
     CISSM,
+    CICO2,
     totalCredits,
 
     net,

@@ -65,6 +65,7 @@ export default function SalaryBreakdown() {
           {results.CIP > 0 && <CreditRow label="CIP" value={results.CIP} />}
           {results.CIM > 0 && <CreditRow label="CIM" value={results.CIM} />}
           {results.CISSM > 0 && <CreditRow label="CISSM" value={results.CISSM} />}
+          {results.CICO2 > 0 && <CreditRow label="CI-CO2" value={results.CICO2} />}
         </div>
       </div>
 

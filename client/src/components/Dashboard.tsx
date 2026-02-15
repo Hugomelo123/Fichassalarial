@@ -117,7 +117,7 @@ export default function Dashboard() {
                       )}
                     </td>
                     <td className="px-5 py-3 text-right text-slate-500">
-                      {emp.congesPris}/{emp.congesAnnuels} j
+                      {emp.congesPris}/{emp.congesAnnuels} h
                     </td>
                   </tr>
                 ))}

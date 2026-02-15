@@ -176,6 +176,7 @@ export default function EmployeeForm() {
                 <SelectItem value="1.25">+25% (x1.25)</SelectItem>
                 <SelectItem value="1.4">+40% (x1.40)</SelectItem>
                 <SelectItem value="1.5">+50% (x1.50)</SelectItem>
+                <SelectItem value="1.7">+70% (x1.70)</SelectItem>
                 <SelectItem value="2">+100% (x2.00)</SelectItem>
               </SelectContent>
             </Select>
@@ -261,45 +262,53 @@ export default function EmployeeForm() {
             )}
           </div>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-[11px] text-slate-500">CI-CO2 (Climat/energie)</Label>
+            <Input type="number" step="0.01" value={emp.CICO2 || ""} onChange={(e) => update({ CICO2: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
+            <p className="mt-0.5 text-[9px] text-slate-400">Credit d'impot taxe CO2</p>
+          </div>
+        </div>
         <p className="text-[9px] text-slate-400">
           Credits mensuels appliques a la retenue d'impot sur le salaire.
         </p>
       </Section>
 
       {/* ── CONGES & ABSENCES ── */}
-      <Section title="Conges & Absences (annuels)" icon={Palmtree}>
+      <Section title="Conges & Absences (heures annuelles)" icon={Palmtree}>
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <Label className="text-[11px] text-slate-500">Conges annuels</Label>
-            <Input type="number" min={0} value={emp.congesAnnuels || ""} onChange={(e) => update({ congesAnnuels: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+            <Label className="text-[11px] text-slate-500">Conges annuels (h)</Label>
+            <Input type="number" min={0} value={emp.congesAnnuels || ""} onChange={(e) => update({ congesAnnuels: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
+            <p className="mt-0.5 text-[9px] text-slate-400">26j x 8h = 208h</p>
           </div>
           <div>
-            <Label className="text-[11px] text-slate-500">Conges pris</Label>
-            <Input type="number" min={0} value={emp.congesPris || ""} onChange={(e) => update({ congesPris: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+            <Label className="text-[11px] text-slate-500">Conges pris (h)</Label>
+            <Input type="number" min={0} value={emp.congesPris || ""} onChange={(e) => update({ congesPris: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
           </div>
           <div>
             <Label className="text-[11px] text-emerald-600 font-semibold">Solde</Label>
             <div className="mt-1 flex h-9 items-center rounded-md bg-emerald-50 px-3 font-mono text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">
-              {emp.congesAnnuels - emp.congesPris} j
+              {emp.congesAnnuels - emp.congesPris} h
             </div>
           </div>
         </div>
         <div className="grid grid-cols-4 gap-3">
           <div>
-            <Label className="text-[11px] text-slate-500">Feries</Label>
-            <Input type="number" min={0} value={emp.feriados || ""} onChange={(e) => update({ feriados: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+            <Label className="text-[11px] text-slate-500">Feries (h)</Label>
+            <Input type="number" min={0} value={emp.feriados || ""} onChange={(e) => update({ feriados: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
           </div>
           <div>
-            <Label className="text-[11px] text-slate-500">Recuperation</Label>
-            <Input type="number" min={0} value={emp.recuperation || ""} onChange={(e) => update({ recuperation: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+            <Label className="text-[11px] text-slate-500">Recuperation (h)</Label>
+            <Input type="number" min={0} value={emp.recuperation || ""} onChange={(e) => update({ recuperation: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
           </div>
           <div>
-            <Label className="text-[11px] text-slate-500">Repos</Label>
-            <Input type="number" min={0} value={emp.repos || ""} onChange={(e) => update({ repos: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+            <Label className="text-[11px] text-slate-500">Repos (h)</Label>
+            <Input type="number" min={0} value={emp.repos || ""} onChange={(e) => update({ repos: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
           </div>
           <div>
-            <Label className="text-[11px] text-slate-500">Maladie (j)</Label>
-            <Input type="number" min={0} value={emp.maladieDays || ""} onChange={(e) => update({ maladieDays: parseInt(e.target.value) || 0 })} className="mt-1 h-9 text-sm" />
+            <Label className="text-[11px] text-slate-500">Maladie (h)</Label>
+            <Input type="number" min={0} value={emp.maladieHeures || ""} onChange={(e) => update({ maladieHeures: parseFloat(e.target.value) || 0 })} className="mt-1 h-9 font-mono text-sm" />
           </div>
         </div>
       </Section>

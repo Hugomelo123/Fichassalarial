@@ -41,17 +41,18 @@ export interface Employee {
   CIP: number;
   CIM: number;
   CISSM: number;
+  CICO2: number;
 
   // Index
   index: number;
 
-  // Leave tracking (annual counters)
-  congesAnnuels: number;
-  congesPris: number;
-  feriados: number;
-  recuperation: number;
-  repos: number;
-  maladieDays: number;
+  // Leave tracking (annual counters — in HOURS)
+  congesAnnuels: number;  // total annual leave hours
+  congesPris: number;     // leave hours taken
+  feriados: number;       // public holidays hours
+  recuperation: number;   // recovery hours
+  repos: number;          // rest hours
+  maladieHeures: number;  // sick leave hours (annual)
 }
 
 export interface CompanyData {
@@ -136,13 +137,14 @@ function createEmptyEmployee(name?: string): Employee {
     CIP: 0,
     CIM: 0,
     CISSM: 0,
+    CICO2: 0,
     index: LUX.index,
-    congesAnnuels: 26,
+    congesAnnuels: 208, // 26 days * 8h
     congesPris: 0,
     feriados: 0,
     recuperation: 0,
     repos: 0,
-    maladieDays: 0,
+    maladieHeures: 0,
   };
 }
 
@@ -160,6 +162,7 @@ function buildInput(emp: Employee, maladieHours: number): PayrollInput {
     CIP: emp.CIP,
     CIM: emp.CIM,
     CISSM: emp.CISSM,
+    CICO2: emp.CICO2,
     fraisDeplacement: emp.fraisDeplacement,
     chequesRepas: emp.chequesRepas,
     autresAvantages: emp.autresAvantages,
@@ -275,7 +278,7 @@ export const usePayrollStore = create<PayrollState>()(
     }),
     {
       name: "luxpayroll-store",
-      version: 3, // bumped from 2 for new schema
+      version: 4, // bumped for CICO2 + hours-based leave
     },
   ),
 );

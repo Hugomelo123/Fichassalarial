@@ -14,13 +14,13 @@ interface EmployeeData {
   salaryMode: "monthly" | "hourly";
   hourlyRate: number;
   hoursWorked: number;
-  // Leave
+  // Leave (in hours)
   congesAnnuels: number;
   congesPris: number;
   feriados: number;
   recuperation: number;
   repos: number;
-  maladieDays: number;
+  maladieHeures: number;
 }
 
 interface CompanyData {
@@ -258,6 +258,7 @@ export const generatePayslipPDF = (
   if (results.CIP > 0) row("", "   Credit d'impots (CIP)", "", "", fmtN(results.CIP), { color: "#059669" });
   if (results.CIM > 0) row("", "   Credit d'impots (CIM)", "", "", fmtN(results.CIM), { color: "#059669" });
   if (results.CISSM > 0) row("", "   Credit d'impots (CISSM)", "", "", fmtN(results.CISSM), { color: "#059669" });
+  if (results.CICO2 > 0) row("", "   Credit d'impots (CI-CO2)", "", "", fmtN(results.CICO2), { color: "#059669" });
 
   // Net
   row("", "", "", "Net", fmtN(results.net), { bold: true, bgColor: [245, 247, 250] });
@@ -328,7 +329,7 @@ export const generatePayslipPDF = (
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(black);
-  doc.text("CONGES & ABSENCES", marginL, y);
+  doc.text("CONGES & ABSENCES (heures)", marginL, y);
 
   y += 3;
   doc.rect(marginL, y, contentW, 14);
@@ -339,8 +340,8 @@ export const generatePayslipPDF = (
 
   const solde = employee.congesAnnuels - employee.congesPris;
   const leaveLines = [
-    `Conges annuels: ${employee.congesAnnuels} j   |   Pris: ${employee.congesPris} j   |   Solde: ${solde} j`,
-    `Feries: ${employee.feriados} j   |   Recuperation: ${employee.recuperation} j   |   Repos: ${employee.repos} j   |   Maladie: ${employee.maladieDays} j`,
+    `Conges annuels: ${employee.congesAnnuels} h   |   Pris: ${employee.congesPris} h   |   Solde: ${solde} h`,
+    `Feries: ${employee.feriados} h   |   Recuperation: ${employee.recuperation} h   |   Repos: ${employee.repos} h   |   Maladie: ${employee.maladieHeures} h`,
   ];
 
   let ly = y + 5.5;
