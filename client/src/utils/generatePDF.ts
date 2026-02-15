@@ -14,7 +14,8 @@ interface EmployeeData {
   salaryMode: "monthly" | "hourly";
   hourlyRate: number;
   hoursWorked: number;
-  // Leave (in hours)
+  overtimeHours: number;
+  overtimeRate: number;
   congesAnnuels: number;
   congesPris: number;
   feriados: number;
@@ -30,6 +31,8 @@ interface CompanyData {
   tva: string;
 }
 
+/* ── Formatting helpers ── */
+
 const MONTHS: Record<string, string> = {
   "01": "JANVIER", "02": "FEVRIER", "03": "MARS", "04": "AVRIL",
   "05": "MAI", "06": "JUIN", "07": "JUILLET", "08": "AOUT",
@@ -41,20 +44,30 @@ function fmtP(period: string): string {
   return `${MONTHS[m] || m} ${y}`;
 }
 
-function fmtN(n: number): string {
-  // Luxembourg format: 3.000,00
-  const parts = n.toFixed(2).split(".");
+/** Luxembourg number format: 3.000,00 */
+function N(n: number): string {
+  if (n === 0) return "0,00";
+  const abs = Math.abs(n);
+  const parts = abs.toFixed(2).split(".");
   const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return `${intPart},${parts[1]}`;
+  const str = `${intPart},${parts[1]}`;
+  return n < 0 ? `-${str}` : str;
 }
 
 function fmtDate(d: string): string {
-  if (!d) return "—";
+  if (!d) return "";
   try {
     const dt = new Date(d);
-    return dt.toLocaleDateString("fr-LU", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const yy = dt.getFullYear();
+    return `${dd}/${mm}/${yy}`;
   } catch { return d; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   GENERATE PAYSLIP PDF — Luxembourg "Décompte Salaire/Traitement"
+   ══════════════════════════════════════════════════════════════ */
 
 export const generatePayslipPDF = (
   employee: EmployeeData,
@@ -64,302 +77,463 @@ export const generatePayslipPDF = (
 ) => {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
 
-  // Colors
-  const black = "#0f172a";
-  const gray = "#64748b";
-  const lightGray = "#94a3b8";
-  const lineColor = "#cbd5e1";
+  /* ── Layout constants ── */
+  const L = 12;          // left margin
+  const R = 198;         // right edge
+  const W = R - L;       // content width
+  const M = L + W / 2;   // midpoint
+  const gap = 3;          // gap between boxes
 
-  const pageW = 210;
-  const marginL = 10;
-  const marginR = 200;
-  const contentW = marginR - marginL;
-  const midX = marginL + contentW / 2;
+  /* ── Colors ── */
+  const BK = "#1e293b";   // dark text
+  const GR = "#64748b";   // gray text
+  const LG = "#94a3b8";   // light gray
+  const LC = "#e2e8f0";   // line color
+  const BG = [248, 250, 252] as const; // very light bg
+  const BG2 = [241, 245, 249] as const; // slightly darker bg
+  const GREEN = "#059669";
+  const RED = "#dc2626";
+
+  const lw = 0.25;       // line width
 
   const [yearN, monthN] = period.split("-").map(Number);
   const JO = getWorkingDays(yearN, monthN);
   const JC = getCalendarDays(yearN, monthN);
 
-  // ──────────────── HEADER ────────────────
+  doc.setDrawColor(LC);
+  doc.setLineWidth(lw);
+
+  /* ══════════════════════════════════════════
+     SECTION 1 — HEADER BOXES
+     ══════════════════════════════════════════ */
   let y = 10;
+  const boxH1 = 30;
+  const leftW = M - L - gap / 2;
+  const rightX = M + gap / 2;
+  const rightW = R - rightX;
 
-  // Title box (left)
-  doc.setDrawColor(lineColor);
-  doc.setLineWidth(0.3);
-  doc.rect(marginL, y, contentW / 2 - 2, 32);
+  // Left box — Title
+  doc.rect(L, y, leftW, boxH1);
+  const cx1 = L + leftW / 2;
 
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(black);
-  doc.text("DECOMPTE SALAIRE/TRAITEMENT", marginL + (contentW / 4 - 1), y + 7, { align: "center" });
+  doc.setTextColor(BK);
+  doc.text("DECOMPTE SALAIRE / TRAITEMENT", cx1, y + 7, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(fmtP(period), marginL + (contentW / 4 - 1), y + 14, { align: "center" });
+  doc.text(fmtP(period), cx1, y + 13, { align: "center" });
 
-  doc.setFontSize(8);
-  doc.setTextColor(gray);
-  doc.text(`Indice : ${results.index.toFixed(2)}`, marginL + (contentW / 4 - 1), y + 21, { align: "center" });
-
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(black);
-  doc.text(`JO : ${JO}  -  JC : ${JC}  -  JI : ${JO}`, marginL + (contentW / 4 - 1), y + 28, { align: "center" });
-
-  // Company box (right)
-  const rightBoxX = midX + 2;
-  doc.setFont("helvetica", "normal");
-  doc.rect(rightBoxX, y, contentW / 2 - 2, 32);
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(black);
-  doc.text(company.name || "Entreprise", rightBoxX + 5, y + 8);
-
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(gray);
-  let compY = y + 14;
-  if (company.address) { doc.text(company.address, rightBoxX + 5, compY); compY += 5; }
-  if (company.city) { doc.text(company.city, rightBoxX + 5, compY); compY += 5; }
-  if (company.tva) { doc.text(company.tva, rightBoxX + 5, compY); }
-
-  // ──────────────── EMPLOYEE DETAILS ────────────────
-  y = 46;
-
-  // Left: employee details
-  doc.rect(marginL, y, contentW / 2 - 2, 38);
   doc.setFontSize(7.5);
-  doc.setTextColor(black);
+  doc.setTextColor(GR);
+  doc.text(`Indice : ${results.index.toFixed(2)}`, cx1, y + 19.5, { align: "center" });
 
-  const detailX = marginL + 4;
-  const detailValX = marginL + 40;
-  let dy = y + 6;
-
-  const details = [
-    ["Matricule", employee.ssn || "—"],
-    ["N° Securite Sociale", employee.numSecSociale || "—"],
-    ["Date d'entree", fmtDate(employee.entryDate)],
-    ["Date d'anciennete", fmtDate(employee.dateAnciennete)],
-    ["", ""],
-    ["Degre d'occupation", `${employee.degreeOccupation.toFixed(2)} / ${employee.degreeOccupation.toFixed(2)}`],
-    ["Mensuel", fmtN(results.salaireBase)],
-  ];
-
-  for (const [label, value] of details) {
-    if (label === "" && value === "") { dy += 2; continue; }
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(gray);
-    doc.text(label, detailX, dy);
-    doc.setFont("helvetica", label === "Mensuel" ? "bold" : "normal");
-    doc.setTextColor(black);
-    doc.text(`: ${value}`, detailValX, dy);
-    dy += 4.5;
-  }
-
-  // Right: employee name
-  doc.rect(rightBoxX, y, contentW / 2 - 2, 38);
-  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(black);
-  doc.text(employee.name || "—", rightBoxX + 5, y + 10);
+  doc.setTextColor(BK);
+  doc.setFontSize(7.5);
+  doc.text(`JO : ${JO}  \u2013  JC : ${JC}  \u2013  JI : ${JO}`, cx1, y + 25.5, { align: "center" });
 
-  doc.setFontSize(8);
+  // Right box — Company
+  doc.rect(rightX, y, rightW, boxH1);
+
+  doc.setFontSize(9.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(BK);
+  doc.text(company.name || "Entreprise", rightX + 4, y + 7);
+
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(gray);
-  doc.text(employee.role || "—", rightBoxX + 5, y + 17);
-  doc.text(`Classe : ${employee.taxClass}`, rightBoxX + 5, y + 23);
+  doc.setTextColor(GR);
+  let cy = y + 13;
+  if (company.address) { doc.text(company.address, rightX + 4, cy); cy += 4.5; }
+  if (company.city) { doc.text(company.city, rightX + 4, cy); cy += 4.5; }
+  if (company.tva) { doc.text(company.tva, rightX + 4, cy); }
 
-  // ──────────────── MAIN TABLE ────────────────
-  y = 88;
+  /* ══════════════════════════════════════════
+     SECTION 2 — EMPLOYEE DETAILS
+     ══════════════════════════════════════════ */
+  y += boxH1 + 2;
+  const boxH2 = 34;
 
-  // Column positions
-  const col = {
-    code: marginL,
-    libelle: marginL + 14,
-    heures: marginL + 110,
-    taux: marginL + 140,
-    montant: marginR - 2,
-  };
-
-  // Table header
-  doc.setFillColor(245, 247, 250); // slate-50
-  doc.rect(marginL, y, contentW, 6, "F");
-  doc.rect(marginL, y, contentW, 6);
+  // Left box — details
+  doc.rect(L, y, leftW, boxH2);
 
   doc.setFontSize(7);
+  const dxL = L + 3;
+  const dxV = L + 38;
+  let edy = y + 5;
+
+  function detailRow(label: string, value: string, bold = false) {
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(GR);
+    doc.text(label, dxL, edy);
+    doc.setTextColor(BK);
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.text(`:  ${value}`, dxV, edy);
+    edy += 4;
+  }
+
+  detailRow("Matricule", employee.ssn || "\u2014");
+  detailRow("N\u00b0 Securite Sociale", employee.numSecSociale || "\u2014");
+  detailRow("Date d'entree", fmtDate(employee.entryDate) || "\u2014");
+  detailRow("Date d'anciennete", fmtDate(employee.dateAnciennete) || "\u2014");
+  edy += 2;
+  detailRow("Degre d'occupation", `${employee.degreeOccupation.toFixed(2)} / ${employee.degreeOccupation.toFixed(2)}`);
+  detailRow("Mensuel", N(results.salaireBase), true);
+
+  // Right box — employee name
+  doc.rect(rightX, y, rightW, boxH2);
+
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(gray);
-  doc.text("Code", col.code + 2, y + 4);
-  doc.text("Libelle", col.libelle, y + 4);
-  doc.text("Nb. Heures", col.heures, y + 4, { align: "right" });
-  doc.text("Taux", col.taux, y + 4, { align: "right" });
-  doc.text("Montant", col.montant, y + 4, { align: "right" });
+  doc.setTextColor(BK);
+  doc.text(employee.name || "\u2014", rightX + 4, y + 9);
 
-  y += 6;
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(GR);
+  if (employee.role) doc.text(employee.role, rightX + 4, y + 15);
+  doc.text(`Classe d'impot : ${employee.taxClass}`, rightX + 4, y + 21);
 
-  // Helper to draw a row
-  function row(code: string, libelle: string, heures: string, taux: string, montant: string, opts?: { bold?: boolean; color?: string; bgColor?: number[] }) {
-    if (opts?.bgColor) {
-      doc.setFillColor(opts.bgColor[0], opts.bgColor[1], opts.bgColor[2]);
-      doc.rect(marginL, y, contentW, 5.5, "F");
+  /* ══════════════════════════════════════════
+     SECTION 3 — MAIN TABLE
+     ══════════════════════════════════════════ */
+  y += boxH2 + 3;
+
+  // Column edges (for vertical separators)
+  const C1 = L + 12;      // end of Code
+  const C2 = L + 100;     // end of Libellé
+  const C3 = L + 125;     // end of Nb.Heures
+  const C4 = L + 158;     // end of Taux
+  // C5 = R (end of Montant)
+
+  const rh = 5;           // row height
+
+  // Table header
+  doc.setFillColor(BG2[0], BG2[1], BG2[2]);
+  doc.rect(L, y, W, rh + 1, "FD");
+
+  // Column headers
+  doc.setFontSize(6.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(GR);
+  doc.text("Code", L + 2, y + 3.8);
+  doc.text("Libelle", C1 + 2, y + 3.8);
+  doc.text("Nb. Heures", C3 - 1, y + 3.8, { align: "right" });
+  doc.text("Taux", C4 - 1, y + 3.8, { align: "right" });
+  doc.text("Montant", R - 2, y + 3.8, { align: "right" });
+
+  // Column separator lines in header
+  doc.line(C1, y, C1, y + rh + 1);
+  doc.line(C2, y, C2, y + rh + 1);
+  doc.line(C3, y, C3, y + rh + 1);
+  doc.line(C4, y, C4, y + rh + 1);
+
+  y += rh + 1;
+  const tableTop = y;
+
+  /* Row drawing helper */
+  function drawRow(
+    code: string, libelle: string, heures: string, taux: string, montant: string,
+    opts?: {
+      bold?: boolean;
+      color?: string;
+      bg?: readonly number[];
+      indent?: boolean;
+      separator?: boolean;
+      thick?: boolean;
+    },
+  ) {
+    const h = rh;
+
+    // Background
+    if (opts?.bg) {
+      doc.setFillColor(opts.bg[0], opts.bg[1], opts.bg[2]);
+      doc.rect(L, y, W, h, "F");
     }
-    doc.setDrawColor(lineColor);
-    doc.line(marginL, y + 5.5, marginR, y + 5.5);
 
-    doc.setFontSize(7.5);
+    // Bottom line
+    doc.setDrawColor(LC);
+    doc.setLineWidth(opts?.thick ? 0.4 : lw);
+    if (opts?.separator !== false) {
+      doc.line(L, y + h, R, y + h);
+    }
+
+    // Column lines
+    doc.setLineWidth(lw);
+    doc.line(C1, y, C1, y + h);
+    doc.line(C2, y, C2, y + h);
+    doc.line(C3, y, C3, y + h);
+    doc.line(C4, y, C4, y + h);
+
+    // Text
+    doc.setFontSize(7);
     doc.setFont("helvetica", opts?.bold ? "bold" : "normal");
-    doc.setTextColor(opts?.color || black);
+    doc.setTextColor(opts?.color || BK);
 
-    if (code) doc.text(code, col.code + 2, y + 4);
-    if (libelle) doc.text(libelle, col.libelle, y + 4);
-    if (heures) doc.text(heures, col.heures, y + 4, { align: "right" });
-    if (taux) doc.text(taux, col.taux, y + 4, { align: "right" });
-    if (montant) doc.text(montant, col.montant, y + 4, { align: "right" });
+    const textY = y + 3.5;
+    if (code) doc.text(code, L + 2, textY);
+    if (libelle) doc.text(libelle, (opts?.indent ? C1 + 6 : C1 + 2), textY);
+    if (heures) doc.text(heures, C3 - 2, textY, { align: "right" });
+    if (taux) doc.text(taux, C4 - 2, textY, { align: "right" });
+    if (montant) doc.text(montant, R - 2, textY, { align: "right" });
 
-    y += 5.5;
+    y += h;
   }
 
-  // Draw outer border
-  const tableStartY = y;
+  // ─── BRUT MENSUEL ───
+  drawRow("", "BRUT MENSUEL", N(results.heuresTotales - results.heuresSupp), "", N(results.salaireBase), { bold: true });
 
-  // BRUT MENSUEL
-  row("", "BRUT MENSUEL", fmtN(results.heuresTotales), "", fmtN(results.salaireBase), { bold: true });
-
-  // Overtime
+  // ─── Overtime ───
   if (results.heuresSupp > 0) {
-    row("", `Heures supplementaires (x${(results.montantHeuresSupp / (results.heuresSupp * results.tauxHoraire)).toFixed(2)})`, fmtN(results.heuresSupp), fmtN(results.tauxHoraire), fmtN(results.montantHeuresSupp));
+    const mult = employee.overtimeRate.toFixed(2);
+    drawRow("", `Heures supplementaires (x${mult})`, N(results.heuresSupp), N(results.tauxHoraire), N(results.montantHeuresSupp));
   }
 
-  // Total brut
-  row("", "", "", "Total brut", fmtN(results.salaryBrut), { bold: true, bgColor: [245, 247, 250] });
+  // ─── Total brut ───
+  drawRow("", "", "", "Total brut", N(results.salaryBrut), { bold: true, bg: BG, thick: true });
 
-  // Spacer
-  y += 2;
-
-  // Cotisations
-  row("", `Caisse Maladie Soins 2,8000%`, "", fmtN(results.salaryBrut), fmtN(results.maladieSoins));
-  row("", `Caisse Maladie Especes 0,2500%`, "", fmtN(results.salaryBrut), fmtN(results.maladieEspeces));
-  row("", `Caisse Pension 8,0000%`, "", fmtN(results.salaryBrut), fmtN(results.pension));
-  row("", `Caisse Dependance 1,4000%`, "", fmtN(results.dependanceBase), fmtN(results.dependance));
-  row("", "Total des Cotisations Sociales", "", "", `-${fmtN(results.totalSocial)}`, { bold: true, color: "#dc2626" });
-
-  // Déduction fiche
-  row("", "Deduction Fiche", "", `Code FD`, fmtN(results.deductionFiche));
-
-  // Total imposable
+  // ─── Empty separator ───
   y += 1;
-  row("", "   Total Imposable", "", fmtN(results.totalImposable), "");
 
-  // Impot
-  row("", "   Impot", "", "", `-${fmtN(results.impots)}`, { color: "#dc2626" });
+  // ─── Cotisations sociales ───
+  drawRow("", "Caisse Maladie Soins 2,8000%", "", N(results.salaryBrut), N(results.maladieSoins), { indent: true });
+  drawRow("", "Caisse Maladie Especes 0,2500%", "", N(results.salaryBrut), N(results.maladieEspeces), { indent: true });
+  drawRow("", "Caisse Pension 8,0000%", "", N(results.salaryBrut), N(results.pension), { indent: true });
+  drawRow("", "Caisse Dependance 1,4000%", "", N(results.dependanceBase), N(results.dependance), { indent: true });
+  drawRow("", "Total des Cotisations Sociales", "", "", `-${N(results.totalSocial)}`, { bold: true, color: RED, thick: true });
 
-  // Credits
-  if (results.CIS > 0) row("", "   Credit d'impots (CIS)", "", "", fmtN(results.CIS), { color: "#059669" });
-  if (results.CIP > 0) row("", "   Credit d'impots (CIP)", "", "", fmtN(results.CIP), { color: "#059669" });
-  if (results.CIM > 0) row("", "   Credit d'impots (CIM)", "", "", fmtN(results.CIM), { color: "#059669" });
-  if (results.CISSM > 0) row("", "   Credit d'impots (CISSM)", "", "", fmtN(results.CISSM), { color: "#059669" });
-  if (results.CICO2 > 0) row("", "   Credit d'impots (CI-CO2)", "", "", fmtN(results.CICO2), { color: "#059669" });
+  // ─── Déduction Fiche ───
+  drawRow("", "Deduction Fiche", "", "Code FD", N(results.deductionFiche), { indent: false });
 
-  // Net
-  row("", "", "", "Net", fmtN(results.net), { bold: true, bgColor: [245, 247, 250] });
-
-  // Frais / Cheques
-  if (results.fraisDeplacement > 0) row("", "Frais de deplacement", "", "", fmtN(results.fraisDeplacement), { color: "#059669" });
-  if (results.autresAvantages > 0) row("", "Autres avantages", "", "", fmtN(results.autresAvantages), { color: "#059669" });
-  if (results.chequesRepas > 0) row("684", "- CHEQUES REPAS", "", "", `-${fmtN(results.chequesRepas)}`, { color: "#dc2626" });
-  if (results.autresDeductions > 0) row("", "- Autres deductions", "", "", `-${fmtN(results.autresDeductions)}`, { color: "#dc2626" });
-
-  // Table border
-  doc.setDrawColor(lineColor);
-  doc.setLineWidth(0.3);
-  doc.rect(marginL, tableStartY, contentW, y - tableStartY);
-
-  // ──── NET A PAYER ────
+  // ─── Total Imposable ───
   y += 1;
-  doc.setFillColor(15, 23, 42); // slate-900
-  doc.roundedRect(marginL, y, contentW, 9, 1, 1, "F");
+  drawRow("", "Total Imposable", "", N(results.totalImposable), "", { indent: true });
+
+  // ─── Impôt ───
+  drawRow("", "Impot", "", "", `-${N(results.impots)}`, { indent: true, color: RED });
+
+  // ─── Crédits d'impôts ───
+  if (results.CIS > 0) drawRow("", "Credit d'impots (CIS)", "", "", N(results.CIS), { indent: true, color: GREEN });
+  if (results.CIP > 0) drawRow("", "Credit d'impots (CIP)", "", "", N(results.CIP), { indent: true, color: GREEN });
+  if (results.CIM > 0) drawRow("", "Credit d'impots (CIM)", "", "", N(results.CIM), { indent: true, color: GREEN });
+  if (results.CISSM > 0) drawRow("", "Credit d'impots (CISSM)", "", "", N(results.CISSM), { indent: true, color: GREEN });
+  if (results.CICO2 > 0) drawRow("", "Credit d'impots (CI-CO2)", "", "", N(results.CICO2), { indent: true, color: GREEN });
+
+  // ─── Net ───
+  drawRow("", "", "", "Net", N(results.net), { bold: true, bg: BG, thick: true });
+
+  // ─── Frais / Avantages / Chèques repas ───
+  if (results.fraisDeplacement > 0)
+    drawRow("", "Frais de deplacement", "", "", N(results.fraisDeplacement), { indent: true });
+  if (results.autresAvantages > 0)
+    drawRow("", "Autres avantages", "", "", N(results.autresAvantages), { indent: true });
+  if (results.chequesRepas > 0)
+    drawRow("684", "- CHEQUES REPAS", "", "", `-${N(results.chequesRepas)}`, { bold: false });
+  if (results.autresDeductions > 0)
+    drawRow("", "- Autres deductions", "", "", `-${N(results.autresDeductions)}`, { bold: false });
+
+  // ─── Outer table border ───
+  doc.setDrawColor(LC);
+  doc.setLineWidth(0.4);
+  doc.rect(L, tableTop, W, y - tableTop);
+  doc.setLineWidth(lw);
+
+  /* ══════════════════════════════════════════
+     NET A PAYER — banner
+     ══════════════════════════════════════════ */
+  y += 0.5;
+  const napH = 8;
+  doc.setFillColor(15, 23, 42);
+  doc.rect(L, y, W, napH, "F");
+
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor("#ffffff");
-  doc.text("NET A PAYER", marginL + 5, y + 6.5);
-  doc.text(`${fmtN(results.netAPayer)}`, marginR - 5, y + 6.5, { align: "right" });
+  doc.text("NET A PAYER", L + 4, y + 5.5);
 
-  // ──────────────── ANNUAL TOTAL ────────────────
-  y += 14;
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(black);
-  doc.text(`TOTAL ANNUEL JUSQU'AU ${getCalendarDays(yearN, monthN)}/${String(monthN).padStart(2, "0")}/${yearN} INCLUS`, marginL, y);
+  doc.setFontSize(11);
+  doc.text(N(results.netAPayer), R - 4, y + 5.5, { align: "right" });
 
-  y += 3;
-  doc.setDrawColor(lineColor);
-  doc.rect(marginL, y, contentW, 18);
+  /* ══════════════════════════════════════════
+     SECTION 4 — ANNUAL TOTALS
+     ══════════════════════════════════════════ */
+  y += napH + 4;
 
   doc.setFontSize(6.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(gray);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(BK);
+  doc.text(`TOTAL ANNUEL JUSQU'AU ${JC}/${String(monthN).padStart(2, "0")}/${yearN} INCLUS`, L, y);
 
-  const annualItems = [
-    [`Brut`, fmtN(results.salaryBrut), `Impos.`, fmtN(results.totalImposable)],
-    [`Cotis.`, fmtN(results.totalSocial), `Impot`, fmtN(results.impots)],
-    [`CIS`, fmtN(results.CIS), `Net`, fmtN(results.net)],
-    [`CISSM`, fmtN(results.CISSM), `A PAYER`, fmtN(results.netAPayer)],
-  ];
+  y += 2;
+  const annH = 22;
+  doc.setDrawColor(LC);
+  doc.rect(L, y, W, annH);
 
-  let ay = y + 4.5;
-  for (const [l1, v1, l2, v2] of annualItems) {
+  // 3-column layout like the real payslip
+  const col1X = L + 3;
+  const col2X = L + 65;
+  const col3X = L + 130;
+
+  doc.setFontSize(5.8);
+
+  function annItem(x: number, yy: number, label: string, val: string) {
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(gray);
-    doc.text(l1, marginL + 4, ay);
+    doc.setTextColor(GR);
+    doc.text(label, x, yy);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(black);
-    doc.text(v1, marginL + 35, ay);
-
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(gray);
-    doc.text(l2, midX + 10, ay);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(black);
-    doc.text(v2, midX + 45, ay);
-    ay += 4;
+    doc.setTextColor(BK);
+    doc.text(val, x + 22, yy);
   }
 
-  // ──────────────── LEAVE SUMMARY ────────────────
-  y += 22;
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(black);
-  doc.text("CONGES & ABSENCES (heures)", marginL, y);
+  let ay = y + 4;
+  const ls = 3.2;
 
-  y += 3;
-  doc.rect(marginL, y, contentW, 14);
+  // Column 1
+  annItem(col1X, ay, "Brut", N(results.salaryBrut));
+  annItem(col1X, ay + ls, "Base CM", N(results.salaryBrut));
+  annItem(col1X, ay + ls * 2, "COTIS CM", N(results.maladieSoins + results.maladieEspeces));
+  annItem(col1X, ay + ls * 3, "Base CP", N(results.salaryBrut));
+  annItem(col1X, ay + ls * 4, "COTIS CP", N(results.pension));
+  annItem(col1X, ay + ls * 5, "Base CD", N(results.dependanceBase));
+  annItem(col1X, ay + ls * 6, "COTIS CD", N(results.dependance));
+
+  // Column 2
+  annItem(col2X, ay, "DED. FD", N(results.deductionFiche));
+  annItem(col2X, ay + ls, "DED. DS", N(0));
+  annItem(col2X, ay + ls * 2, "DED. AC", N(0));
+  annItem(col2X, ay + ls * 3, "DED. HS", N(0));
+  annItem(col2X, ay + ls * 4, "DED. NDF", N(0));
+  annItem(col2X, ay + ls * 5, "DED. AE", N(0));
+  annItem(col2X, ay + ls * 6, "DED. FFO", N(0));
+
+  // Column 3
+  annItem(col3X, ay, "Impos.", N(results.totalImposable));
+  annItem(col3X, ay + ls, "Impot", N(results.impots));
+  annItem(col3X, ay + ls * 2, "CIS", N(results.CIS));
+  annItem(col3X, ay + ls * 3, "CIM", N(results.CIM));
+  annItem(col3X, ay + ls * 4, "CISSM", N(results.CISSM));
+  annItem(col3X, ay + ls * 5, "Net", N(results.net));
+  annItem(col3X, ay + ls * 6, "A PAYER", N(results.netAPayer));
+
+  /* ══════════════════════════════════════════
+     SECTION 5 — CONGÉS & ABSENCES (heures)
+     ══════════════════════════════════════════ */
+  y += annH + 4;
 
   doc.setFontSize(6.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(gray);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(BK);
+  doc.text("CONGES & ABSENCES (cumul annuel en heures)", L, y);
 
+  y += 2;
+  const leaveH = 16;
+  doc.rect(L, y, W, leaveH);
+
+  // Divider at midpoint
+  doc.setDrawColor(LC);
+  doc.line(M, y, M, y + leaveH);
+
+  doc.setFontSize(6.5);
   const solde = employee.congesAnnuels - employee.congesPris;
-  const leaveLines = [
-    `Conges annuels: ${employee.congesAnnuels} h   |   Pris: ${employee.congesPris} h   |   Solde: ${solde} h`,
-    `Feries: ${employee.feriados} h   |   Recuperation: ${employee.recuperation} h   |   Repos: ${employee.repos} h   |   Maladie: ${employee.maladieHeures} h`,
-  ];
 
-  let ly = y + 5.5;
-  for (const line of leaveLines) {
-    doc.text(line, marginL + 4, ly);
-    ly += 5;
-  }
+  // Left half
+  let lx = L + 3;
+  let ly = y + 4.5;
 
-  // ──────────────── FOOTER ────────────────
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(GR);
+  doc.text("Conges annuels :", lx, ly);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(BK);
+  doc.text(`${employee.congesAnnuels} h`, lx + 30, ly);
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(GR);
+  doc.text("Pris :", lx + 45, ly);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(BK);
+  doc.text(`${employee.congesPris} h`, lx + 55, ly);
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(GR);
+  doc.text("Solde :", lx + 68, ly);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(GREEN);
+  doc.text(`${solde} h`, lx + 80, ly);
+
+  ly += 4;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(GR);
+  doc.text("Feries :", lx, ly);
+  doc.setTextColor(BK);
+  doc.text(`${employee.feriados} h`, lx + 15, ly);
+
+  doc.setTextColor(GR);
+  doc.text("Recup. :", lx + 30, ly);
+  doc.setTextColor(BK);
+  doc.text(`${employee.recuperation} h`, lx + 46, ly);
+
+  ly += 4;
+  doc.setTextColor(GR);
+  doc.text("Repos :", lx, ly);
+  doc.setTextColor(BK);
+  doc.text(`${employee.repos} h`, lx + 15, ly);
+
+  doc.setTextColor(GR);
+  doc.text("Maladie :", lx + 30, ly);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(employee.maladieHeures > 0 ? "#d97706" : BK);
+  doc.text(`${employee.maladieHeures} h`, lx + 46, ly);
+
+  // Right half — summary box
+  const rx = M + 4;
+  let ry = y + 4.5;
+
   doc.setFontSize(6);
-  doc.setTextColor(lightGray);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(GR);
+  doc.text("Heures normales (mois) :", rx, ry);
+  doc.setTextColor(BK);
+  doc.text(`${N(results.heuresNormales)}`, rx + 42, ry);
+
+  ry += 3.5;
+  doc.setTextColor(GR);
+  doc.text("Heures maladie (mois) :", rx, ry);
+  doc.setTextColor(employee.maladieHeures > 0 ? "#d97706" : BK);
+  doc.text(`${N(results.heuresMaladie)}`, rx + 42, ry);
+
+  ry += 3.5;
+  doc.setTextColor(GR);
+  doc.text("Heures suppl. (mois) :", rx, ry);
+  doc.setTextColor(BK);
+  doc.text(`${N(results.heuresSupp)}`, rx + 42, ry);
+
+  ry += 3.5;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(GR);
+  doc.text("Total heures (mois) :", rx, ry);
+  doc.setTextColor(BK);
+  doc.text(`${N(results.heuresTotales)}`, rx + 42, ry);
+
+  /* ══════════════════════════════════════════
+     FOOTER
+     ══════════════════════════════════════════ */
+  doc.setFontSize(5.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(LG);
   doc.text(
-    "Document genere par LuxPayroll 2026 — Simulation indicative — Grand-Duche de Luxembourg",
-    pageW / 2, 287,
-    { align: "center" },
+    "Document genere par LuxPayroll 2026  \u2014  Simulation indicative  \u2014  Grand-Duche de Luxembourg",
+    105, 289, { align: "center" },
   );
 
-  // Save
+  // Thin decorative line
+  doc.setDrawColor(LC);
+  doc.setLineWidth(0.15);
+  doc.line(50, 286, 160, 286);
+
+  /* ── Save ── */
   const safeName = (employee.name || "Employe").replace(/\s+/g, "_");
   doc.save(`Decompte_${safeName}_${period}.pdf`);
 };
