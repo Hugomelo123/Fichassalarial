@@ -57,9 +57,15 @@ export default function SalaryBreakdown() {
 
       {/* Fiscalité */}
       <div>
-        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fiscalite</p>
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fiscalite (bareme progressif)</p>
         <Row label="Revenu imposable" value={results.totalImposable} neutral />
-        <Row label="Impot retenu (RTS)" value={results.impots} />
+        <Row label="Impot bareme" value={results.baseTaxBrackets} />
+        <Row label="Solidarite (7%)" value={results.solidarity} />
+        {results.baremeCredit > 0 && <CreditRow label="Credit bareme 1a" value={results.baremeCredit} />}
+        <div className="flex items-center justify-between py-0.5 text-xs font-semibold">
+          <span className="text-slate-700">Impot retenu</span>
+          <span className="font-mono text-red-500">- {results.impots.toFixed(2)}</span>
+        </div>
         <div className="mt-1 space-y-0.5">
           {results.CIS > 0 && <CreditRow label="CIS" value={results.CIS} />}
           {results.CIP > 0 && <CreditRow label="CIP" value={results.CIP} />}

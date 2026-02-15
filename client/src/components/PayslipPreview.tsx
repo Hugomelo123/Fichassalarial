@@ -163,14 +163,31 @@ export default function PayslipPreview() {
               <td></td>
             </tr>
 
-            {/* Impot */}
+            {/* Impot progressif */}
             <tr className="border-b border-slate-100">
-              <td className="px-3 py-1.5" colSpan={2}><span className="font-sans text-slate-600 pl-4">Impot</span></td>
+              <td className="px-3 py-1.5" colSpan={2}><span className="font-sans text-slate-500 pl-4 text-[10px]">Impot bareme progressif</span></td>
               <td colSpan={2}></td>
-              <td className="px-3 py-1.5 text-right text-red-600">-{fmtLU(results.impots)}</td>
+              <td className="px-3 py-1.5 text-right text-slate-400 text-[10px]">-{fmtLU(results.baseTaxBrackets)}</td>
+            </tr>
+            <tr className="border-b border-slate-100">
+              <td className="px-3 py-1.5" colSpan={2}><span className="font-sans text-slate-500 pl-4 text-[10px]">Solidarite fonds emploi (7%)</span></td>
+              <td colSpan={2}></td>
+              <td className="px-3 py-1.5 text-right text-slate-400 text-[10px]">-{fmtLU(results.solidarity)}</td>
+            </tr>
+            {results.baremeCredit > 0 && (
+              <tr className="border-b border-slate-100 text-emerald-700">
+                <td className="px-3 py-1.5" colSpan={2}><span className="font-sans pl-4 text-[10px]">Credit bareme Cl.1a</span></td>
+                <td colSpan={2}></td>
+                <td className="px-3 py-1.5 text-right text-[10px] font-semibold">{fmtLU(results.baremeCredit)}</td>
+              </tr>
+            )}
+            <tr className="border-b border-slate-100">
+              <td className="px-3 py-1.5" colSpan={2}><span className="font-sans text-red-600 pl-4 font-semibold">Impot retenu</span></td>
+              <td colSpan={2}></td>
+              <td className="px-3 py-1.5 text-right text-red-600 font-semibold">-{fmtLU(results.impots)}</td>
             </tr>
 
-            {/* Credits */}
+            {/* Credits externes */}
             {results.CIS > 0 && <CreditRow2 label="Credit d'impots (CIS)" amount={results.CIS} />}
             {results.CIP > 0 && <CreditRow2 label="Credit d'impots (CIP)" amount={results.CIP} />}
             {results.CIM > 0 && <CreditRow2 label="Credit d'impots (CIM)" amount={results.CIM} />}

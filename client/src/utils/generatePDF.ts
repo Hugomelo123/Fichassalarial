@@ -311,10 +311,15 @@ export const generatePayslipPDF = (
   y += 1;
   drawRow("", "Total Imposable", "", N(results.totalImposable), "", { indent: true });
 
-  // ─── Impôt ───
-  drawRow("", "Impot", "", "", `-${N(results.impots)}`, { indent: true, color: RED });
+  // ─── Impôt progressif ───
+  drawRow("", "Impot (bareme progressif)", "", "", `-${N(results.baseTaxBrackets)}`, { indent: true, color: RED });
+  drawRow("", "Solidarite fonds emploi (7%)", "", "", `-${N(results.solidarity)}`, { indent: true, color: RED });
+  if (results.baremeCredit > 0) {
+    drawRow("", "Credit bareme Cl.1a", "", "", N(results.baremeCredit), { indent: true, color: GREEN });
+  }
+  drawRow("", "Impot retenu", "", "", `-${N(results.impots)}`, { indent: true, bold: true, color: RED });
 
-  // ─── Crédits d'impôts ───
+  // ─── Crédits d'impôts externes ───
   if (results.CIS > 0) drawRow("", "Credit d'impots (CIS)", "", "", N(results.CIS), { indent: true, color: GREEN });
   if (results.CIP > 0) drawRow("", "Credit d'impots (CIP)", "", "", N(results.CIP), { indent: true, color: GREEN });
   if (results.CIM > 0) drawRow("", "Credit d'impots (CIM)", "", "", N(results.CIM), { indent: true, color: GREEN });
