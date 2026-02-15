@@ -307,7 +307,9 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
   const deductionFiche = 0;
 
   // ── Taxable income ──
-  const totalImposable = round(salaryBrut - totalSocial - deductionFiche);
+  // IMPORTANT: Dépendance does NOT reduce taxable income in Luxembourg.
+  // Only maladie (soins + espèces) + pension reduce the base imposable.
+  const totalImposable = round(salaryBrut - cotisations - deductionFiche);
 
   // ── Progressive tax ──
   const tax = calculateTax(totalImposable, taxClass);
@@ -318,8 +320,9 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
   // ── Impot retenu (credits reduce tax, never below 0) ──
   const impotRetenu = round(Math.max(0, tax.impots - totalCredits));
 
-  // ── Net = totalImposable - impotRetenu (credits NOT added again) ──
-  const net = round(totalImposable - impotRetenu);
+  // ── Net = totalImposable - dépendance - impotRetenu ──
+  // Dépendance is subtracted from net but was NOT subtracted from totalImposable.
+  const net = round(totalImposable - dependanceAmt - impotRetenu);
 
   // ── NET A PAYER ──
   const netAPayer = round(net + fraisDeplacement + autresAvantages - chequesRepas - autresDeductions);

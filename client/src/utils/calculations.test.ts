@@ -1,28 +1,26 @@
 /**
- * Unit test: verifica que os créditos fiscais NÃO são aplicados duas vezes.
+ * Unit test — verifica que os cálculos correspondem a uma ficha real luxemburguesa.
  *
- * Valores de teste (fornecidos pelo utilizador):
- *   brut            = 2896.54
- *   cotisations     = 351.61   (totalSocial)
- *   impotBrut       = 148.89   (baseTax + solidarity, antes de baremeCredit)
- *   credits         = 30 (bareme) + 58 (CIS) + 81 (CISSM) + 16 (CI-CO2) = 185
- *
- * Resultado esperado:
- *   totalImposable  = 2896.54 − 351.61 = 2544.93
- *   impotRetenu     = max(0, 148.89 − 30 − 58 − 81 − 16) = max(0, −36.11) = 0
- *   net             = 2544.93 − 0 = 2544.93
- *
- * BUG anterior (creditos somados 2×):
- *   impots          = 148.89 − 30 = 118.89
- *   net (ERRADO)    = 2544.93 − 118.89 + (58+81+16) = 2581.04  ← excede totalImposable!
+ * Ficha de referência: SETEMBRO 2025 (DD CONSTRUCTIONS SA)
+ *   Brut:               2.896,54
+ *   Cotis. CM:          81,10 + 7,24 + 231,72 = 320,06
+ *   Dep. base:          2.220,61  →  Dep: 31,09
+ *   Total Social:       351,15
+ *   Total Imposable:    2.576,48   (= brut − cotisations, SEM dépendance)
+ *   Impôt:              176,20
+ *   CIS:                50,00
+ *   CI-CO2:             16,00
+ *   CISSM:              81,00
+ *   Net:                2.516,19
+ *   NET A PAYER:        1.516,19   (acompte -1.000,00)
  *
  * Run:  npx tsx client/src/utils/calculations.test.ts
  */
 
 import { calculateLuxSalary, type PayrollInput, type PayrollResult } from "./calculations";
 
-/* ─── Helper: build minimal input that produces the target brut & cotisations ─── */
-function buildTestInput(overrides: Partial<PayrollInput> = {}): PayrollInput {
+/* ─── Helper ─── */
+function buildInput(overrides: Partial<PayrollInput> = {}): PayrollInput {
   return {
     salaryMode: "monthly",
     monthlyGross: 2896.54,
@@ -31,8 +29,8 @@ function buildTestInput(overrides: Partial<PayrollInput> = {}): PayrollInput {
     maladieHours: 0,
     overtimeHours: 0,
     overtimeRate: 1.5,
-    taxClass: "1a",
-    CIS: 58,
+    taxClass: "1",
+    CIS: 50,
     CIP: 0,
     CIM: 0,
     CISSM: 81,
@@ -41,12 +39,11 @@ function buildTestInput(overrides: Partial<PayrollInput> = {}): PayrollInput {
     chequesRepas: 0,
     autresAvantages: 0,
     autresDeductions: 0,
-    index: 955.99,
+    index: 968.04,
     ...overrides,
   };
 }
 
-/* ─── Assertions ─── */
 function assert(cond: boolean, msg: string) {
   if (!cond) {
     console.error(`❌ FAIL: ${msg}`);
@@ -59,68 +56,100 @@ function approx(a: number, b: number, tol = 0.02): boolean {
   return Math.abs(a - b) <= tol;
 }
 
-/* ─── Run test ─── */
-const input = buildTestInput();
+/* ═══════════════════════════════════
+   TEST 1: Fluxo completo de cálculo
+   ═══════════════════════════════════ */
+console.log("\n══════════════════════════════════════════");
+console.log("  TEST 1: Fluxo de cálculo (ficha real)");
+console.log("══════════════════════════════════════════\n");
+
+const input = buildInput();
 const r: PayrollResult = calculateLuxSalary(input);
 
-console.log("\n══════════════════════════════════════════");
-console.log("  TEST: Duplicação de créditos fiscais");
-console.log("══════════════════════════════════════════\n");
 console.log(`  Brut:             ${r.salaryBrut}`);
-console.log(`  Cotisations:      ${r.totalSocial}`);
-console.log(`  Total Imposable:  ${r.totalImposable}`);
-console.log(`  Base Tax:         ${r.baseTaxBrackets}`);
-console.log(`  Solidarity:       ${r.solidarity}`);
-console.log(`  Bareme credit:    ${r.baremeCredit}`);
-console.log(`  Impots (avant):   ${r.impots}`);
-console.log(`  Total credits:    ${r.totalCredits}`);
+console.log(`  Cotisations CM:   ${r.cotisations}  (maladie+pension, SEM dépendance)`);
+console.log(`  Dependance:       ${r.dependance}   (base: ${r.dependanceBase})`);
+console.log(`  Total Social:     ${r.totalSocial}  (cotis + dep)`);
+console.log(`  Total Imposable:  ${r.totalImposable}  (brut − cotisations)`);
+console.log(`  Impot:            ${r.impots}`);
+console.log(`  CIS: ${r.CIS}  CI-CO2: ${r.CICO2}  CISSM: ${r.CISSM}`);
 console.log(`  Impot retenu:     ${r.impotRetenu}`);
 console.log(`  Net:              ${r.net}`);
 console.log(`  Net a payer:      ${r.netAPayer}`);
 console.log("");
 
-// TEST 1: Net NUNCA pode exceder totalImposable (quando sem frais/avantages)
+// 1a. totalImposable = brut − cotisations (SEM dépendance)
 assert(
-  r.net <= r.totalImposable,
-  `Net (${r.net}) <= Total Imposable (${r.totalImposable})`
+  approx(r.totalImposable, r.salaryBrut - r.cotisations),
+  `totalImposable (${r.totalImposable}) = brut (${r.salaryBrut}) − cotisations (${r.cotisations}) = ${(r.salaryBrut - r.cotisations).toFixed(2)} [dépendance NÃO subtraída]`
 );
 
-// TEST 2: impotRetenu = max(0, impots - totalCredits)
+// 1b. totalImposable NÃO deve incluir dépendance
+assert(
+  r.totalImposable > r.salaryBrut - r.totalSocial,
+  `totalImposable (${r.totalImposable}) > brut − totalSocial (${(r.salaryBrut - r.totalSocial).toFixed(2)}) [dépendance excluída]`
+);
+
+// 1c. impotRetenu = max(0, impots − credits)
 const expectedRetenu = Math.max(0, Number((r.impots - r.totalCredits).toFixed(2)));
 assert(
   approx(r.impotRetenu, expectedRetenu),
-  `impotRetenu (${r.impotRetenu}) ≈ max(0, ${r.impots} - ${r.totalCredits}) = ${expectedRetenu}`
+  `impotRetenu (${r.impotRetenu}) = max(0, ${r.impots} − ${r.totalCredits}) = ${expectedRetenu}`
 );
 
-// TEST 3: net = totalImposable - impotRetenu (sem creditos somados outra vez)
-const expectedNet = Number((r.totalImposable - r.impotRetenu).toFixed(2));
+// 1d. net = totalImposable − dépendance − impotRetenu
+const expectedNet = Number((r.totalImposable - r.dependance - r.impotRetenu).toFixed(2));
 assert(
   approx(r.net, expectedNet),
-  `net (${r.net}) ≈ totalImposable (${r.totalImposable}) - impotRetenu (${r.impotRetenu}) = ${expectedNet}`
+  `net (${r.net}) = totalImposable (${r.totalImposable}) − dépendance (${r.dependance}) − impotRetenu (${r.impotRetenu}) = ${expectedNet}`
 );
 
-// TEST 4: Com credits > impots, impotRetenu deve ser 0 e net = totalImposable
-const bigCreditsInput = buildTestInput({ CIS: 58, CISSM: 81, CICO2: 200 }); // credits way > tax
-const r2 = calculateLuxSalary(bigCreditsInput);
+// 1e. net = brut − totalSocial − impotRetenu (equivalente)
+const expectedNet2 = Number((r.salaryBrut - r.totalSocial - r.impotRetenu).toFixed(2));
 assert(
-  r2.impotRetenu === 0,
-  `Quando credits (${r2.totalCredits}) > impots (${r2.impots}): impotRetenu = 0 (got ${r2.impotRetenu})`
-);
-assert(
-  approx(r2.net, r2.totalImposable),
-  `Quando credits excedem: net (${r2.net}) = totalImposable (${r2.totalImposable})`
+  approx(r.net, expectedNet2),
+  `net (${r.net}) = brut (${r.salaryBrut}) − totalSocial (${r.totalSocial}) − impotRetenu (${r.impotRetenu}) = ${expectedNet2}`
 );
 
-// TEST 5: Com credits = 0, net = totalImposable - impots
-const noCreditsInput = buildTestInput({ CIS: 0, CISSM: 0, CICO2: 0 });
-const r3 = calculateLuxSalary(noCreditsInput);
+// 1f. Net NUNCA excede totalImposable − dépendance
+assert(
+  r.net <= r.totalImposable - r.dependance + 0.01,
+  `net (${r.net}) ≤ totalImposable − dep (${(r.totalImposable - r.dependance).toFixed(2)})`
+);
+
+/* ═══════════════════════════════════
+   TEST 2: Credits > Impot (edge case)
+   ═══════════════════════════════════ */
+console.log("\n══════════════════════════════════════════");
+console.log("  TEST 2: Créditos excedem imposto");
+console.log("══════════════════════════════════════════\n");
+
+const r2 = calculateLuxSalary(buildInput({ CIS: 100, CISSM: 200, CICO2: 100 }));
+console.log(`  Impots: ${r2.impots}  Credits: ${r2.totalCredits}  ImpotRetenu: ${r2.impotRetenu}  Net: ${r2.net}`);
+
+assert(r2.impotRetenu === 0, `impotRetenu = 0 quando créditos (${r2.totalCredits}) > impot (${r2.impots})`);
+assert(
+  approx(r2.net, r2.totalImposable - r2.dependance),
+  `net (${r2.net}) = totalImposable − dep (${(r2.totalImposable - r2.dependance).toFixed(2)}) quando impotRetenu = 0`
+);
+
+/* ═══════════════════════════════════
+   TEST 3: Sem créditos
+   ═══════════════════════════════════ */
+console.log("\n══════════════════════════════════════════");
+console.log("  TEST 3: Sem créditos");
+console.log("══════════════════════════════════════════\n");
+
+const r3 = calculateLuxSalary(buildInput({ CIS: 0, CISSM: 0, CICO2: 0 }));
+console.log(`  Impots: ${r3.impots}  ImpotRetenu: ${r3.impotRetenu}  Net: ${r3.net}`);
+
 assert(
   approx(r3.impotRetenu, r3.impots),
-  `Sem credits: impotRetenu (${r3.impotRetenu}) = impots (${r3.impots})`
+  `Sem créditos: impotRetenu (${r3.impotRetenu}) = impots (${r3.impots})`
 );
 assert(
-  approx(r3.net, r3.totalImposable - r3.impots),
-  `Sem credits: net (${r3.net}) = totalImposable - impots = ${(r3.totalImposable - r3.impots).toFixed(2)}`
+  approx(r3.net, r3.totalImposable - r3.dependance - r3.impots),
+  `Sem créditos: net (${r3.net}) = imposable − dep − impots = ${(r3.totalImposable - r3.dependance - r3.impots).toFixed(2)}`
 );
 
 console.log("\n══════════════════════════════════════════");

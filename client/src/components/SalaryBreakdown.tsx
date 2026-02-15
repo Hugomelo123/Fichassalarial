@@ -57,25 +57,15 @@ export default function SalaryBreakdown() {
 
       {/* Fiscalité */}
       <div>
-        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fiscalite (bareme progressif)</p>
-        <Row label="Revenu imposable" value={results.totalImposable} neutral />
-        <Row label="Impot bareme" value={results.baseTaxBrackets ?? 0} />
-        <Row label="Solidarite (7%)" value={results.solidarity ?? 0} />
-        {(results.baremeCredit ?? 0) > 0 && <CreditRow label="Credit bareme 1a" value={results.baremeCredit} />}
-        <div className="flex items-center justify-between py-0.5 text-xs">
-          <span className="text-slate-600">Impot avant credits</span>
-          <span className="font-mono font-medium text-slate-500">- {(results.impots ?? 0).toFixed(2)}</span>
-        </div>
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fiscalite</p>
+        <Row label="Total Imposable" value={results.totalImposable} neutral />
+        <Row label="Impot" value={results.impots ?? 0} />
         <div className="mt-1 space-y-0.5">
-          {results.CIS > 0 && <CreditRow label="CIS" value={results.CIS} />}
-          {results.CIP > 0 && <CreditRow label="CIP" value={results.CIP} />}
-          {results.CIM > 0 && <CreditRow label="CIM" value={results.CIM} />}
-          {results.CISSM > 0 && <CreditRow label="CISSM" value={results.CISSM} />}
+          {results.CIS > 0 && <CreditRow label="Credit d'impots (CIS)" value={results.CIS} />}
+          {results.CIP > 0 && <CreditRow label="Credit d'impots (CIP)" value={results.CIP} />}
+          {results.CIM > 0 && <CreditRow label="Credit d'impots (CIM)" value={results.CIM} />}
           {results.CICO2 > 0 && <CreditRow label="CI-CO2" value={results.CICO2} />}
-        </div>
-        <div className="flex items-center justify-between py-1 text-xs font-semibold">
-          <span className="text-red-600">Impot retenu</span>
-          <span className="font-mono text-red-600">- {(results.impotRetenu ?? 0).toFixed(2)}</span>
+          {results.CISSM > 0 && <CreditRow label="Credit d'impots Sal. min." value={results.CISSM} />}
         </div>
       </div>
 

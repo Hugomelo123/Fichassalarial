@@ -311,23 +311,15 @@ export const generatePayslipPDF = (
   y += 1;
   drawRow("", "Total Imposable", "", N(results.totalImposable), "", { indent: true });
 
-  // ─── Impôt progressif ───
-  drawRow("", "Impot (bareme progressif)", "", "", `-${N(results.baseTaxBrackets)}`, { indent: true, color: RED });
-  drawRow("", "Solidarite fonds emploi (7%)", "", "", `-${N(results.solidarity)}`, { indent: true, color: RED });
-  if ((results.baremeCredit ?? 0) > 0) {
-    drawRow("", "Credit bareme Cl.1a", "", "", N(results.baremeCredit), { indent: true, color: GREEN });
-  }
-  drawRow("", "Impot avant credits", "", "", `-${N(results.impots)}`, { indent: true, bold: false });
+  // ─── Impôt (single line, matching real LU payslip) ───
+  drawRow("", "Impot", "", "", `-${N(results.impots)}`, { indent: true, color: RED });
 
-  // ─── Crédits d'impôts (réduisent l'impôt) ───
-  if (results.CIS > 0) drawRow("", "Credit d'impots (CIS)", "", "", N(results.CIS), { indent: true, color: GREEN });
+  // ─── Crédits d'impôts (shown as positive, reduce tax internally) ───
+  if (results.CIS > 0) drawRow("", "Credit d'impots", "", "", N(results.CIS), { indent: true, color: GREEN });
   if (results.CIP > 0) drawRow("", "Credit d'impots (CIP)", "", "", N(results.CIP), { indent: true, color: GREEN });
   if (results.CIM > 0) drawRow("", "Credit d'impots (CIM)", "", "", N(results.CIM), { indent: true, color: GREEN });
-  if (results.CISSM > 0) drawRow("", "Credit d'impots (CISSM)", "", "", N(results.CISSM), { indent: true, color: GREEN });
-  if (results.CICO2 > 0) drawRow("", "Credit d'impots (CI-CO2)", "", "", N(results.CICO2), { indent: true, color: GREEN });
-
-  // ─── Impot retenu = max(0, impots - credits) ───
-  drawRow("", "Impot retenu", "", "", `-${N(results.impotRetenu)}`, { indent: true, bold: true, color: RED });
+  if (results.CICO2 > 0) drawRow("", "CI-CO2", "", "", N(results.CICO2), { indent: true, color: GREEN });
+  if (results.CISSM > 0) drawRow("", "Credit d'Impots Salaire minimum", "", "", N(results.CISSM), { indent: true, color: GREEN });
 
   // ─── Net ───
   drawRow("", "", "", "Net", N(results.net), { bold: true, bg: BG, thick: true });
