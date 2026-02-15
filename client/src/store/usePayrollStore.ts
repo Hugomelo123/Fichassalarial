@@ -278,7 +278,7 @@ export const usePayrollStore = create<PayrollState>()(
     }),
     {
       name: "luxpayroll-store",
-      version: 4, // bumped for CICO2 + hours-based leave
+      version: 5, // bumped for progressive tax brackets
     },
   ),
 );

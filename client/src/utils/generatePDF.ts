@@ -45,8 +45,8 @@ function fmtP(period: string): string {
 }
 
 /** Luxembourg number format: 3.000,00 */
-function N(n: number): string {
-  if (n === 0) return "0,00";
+function N(n: number | undefined): string {
+  if (!n || n === 0) return "0,00";
   const abs = Math.abs(n);
   const parts = abs.toFixed(2).split(".");
   const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -314,17 +314,20 @@ export const generatePayslipPDF = (
   // ─── Impôt progressif ───
   drawRow("", "Impot (bareme progressif)", "", "", `-${N(results.baseTaxBrackets)}`, { indent: true, color: RED });
   drawRow("", "Solidarite fonds emploi (7%)", "", "", `-${N(results.solidarity)}`, { indent: true, color: RED });
-  if (results.baremeCredit > 0) {
+  if ((results.baremeCredit ?? 0) > 0) {
     drawRow("", "Credit bareme Cl.1a", "", "", N(results.baremeCredit), { indent: true, color: GREEN });
   }
-  drawRow("", "Impot retenu", "", "", `-${N(results.impots)}`, { indent: true, bold: true, color: RED });
+  drawRow("", "Impot avant credits", "", "", `-${N(results.impots)}`, { indent: true, bold: false });
 
-  // ─── Crédits d'impôts externes ───
+  // ─── Crédits d'impôts (réduisent l'impôt) ───
   if (results.CIS > 0) drawRow("", "Credit d'impots (CIS)", "", "", N(results.CIS), { indent: true, color: GREEN });
   if (results.CIP > 0) drawRow("", "Credit d'impots (CIP)", "", "", N(results.CIP), { indent: true, color: GREEN });
   if (results.CIM > 0) drawRow("", "Credit d'impots (CIM)", "", "", N(results.CIM), { indent: true, color: GREEN });
   if (results.CISSM > 0) drawRow("", "Credit d'impots (CISSM)", "", "", N(results.CISSM), { indent: true, color: GREEN });
   if (results.CICO2 > 0) drawRow("", "Credit d'impots (CI-CO2)", "", "", N(results.CICO2), { indent: true, color: GREEN });
+
+  // ─── Impot retenu = max(0, impots - credits) ───
+  drawRow("", "Impot retenu", "", "", `-${N(results.impotRetenu)}`, { indent: true, bold: true, color: RED });
 
   // ─── Net ───
   drawRow("", "", "", "Net", N(results.net), { bold: true, bg: BG, thick: true });

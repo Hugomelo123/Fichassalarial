@@ -206,18 +206,22 @@ export interface PayrollResult {
   totalImposable: number;
 
   // Tax (progressive)
-  baseTaxBrackets: number;  // raw bracket tax
+  baseTaxBrackets: number;  // raw bracket tax (before solidarity/credits)
   solidarity: number;       // contribution fonds emploi
-  baremeCredit: number;     // class-specific barème credit
-  impots: number;           // after barème credit = baseTax + solidarity - barèmeCredit
+  baremeCredit: number;     // class-specific barème credit (Cl.1a)
+  impots: number;           // = baseTax + solidarity - barèmeCredit (before external credits)
 
-  // External credits (user-set, shown separately)
+  // External credits (user-set, shown on payslip as reductions of tax)
   CIS: number;
   CIP: number;
   CIM: number;
   CISSM: number;
   CICO2: number;
   totalCredits: number;
+
+  // Actual tax withheld = max(0, impots - totalCredits)
+  // Credits ONLY reduce the tax, never below 0. Excess is lost.
+  impotRetenu: number;
 
   net: number;
 
@@ -311,8 +315,11 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
   // ── External credits ──
   const totalCredits = round(CIS + CIP + CIM + CISSM + CICO2);
 
-  // ── Net ──
-  const net = round(totalImposable - tax.impots + totalCredits);
+  // ── Impot retenu (credits reduce tax, never below 0) ──
+  const impotRetenu = round(Math.max(0, tax.impots - totalCredits));
+
+  // ── Net = totalImposable - impotRetenu (credits NOT added again) ──
+  const net = round(totalImposable - impotRetenu);
 
   // ── NET A PAYER ──
   const netAPayer = round(net + fraisDeplacement + autresAvantages - chequesRepas - autresDeductions);
@@ -351,6 +358,8 @@ export function calculateLuxSalary(input: PayrollInput): PayrollResult {
     CISSM,
     CICO2,
     totalCredits,
+
+    impotRetenu,
 
     net,
 

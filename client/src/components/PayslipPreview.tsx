@@ -13,7 +13,7 @@ const MONTHS: Record<string, string> = {
 };
 
 function fmtPeriod(p: string) { const [y, m] = p.split("-"); return `${MONTHS[m] || m} ${y}`; }
-function fmtLU(n: number) { return n.toLocaleString("fr-LU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtLU(n: number | undefined) { return (n ?? 0).toLocaleString("fr-LU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
 export default function PayslipPreview() {
   const { employees, selectedEmployeeId, company, results, period, maladieHours, savePayslip } = usePayrollStore();
@@ -174,7 +174,7 @@ export default function PayslipPreview() {
               <td colSpan={2}></td>
               <td className="px-3 py-1.5 text-right text-slate-400 text-[10px]">-{fmtLU(results.solidarity)}</td>
             </tr>
-            {results.baremeCredit > 0 && (
+            {(results.baremeCredit ?? 0) > 0 && (
               <tr className="border-b border-slate-100 text-emerald-700">
                 <td className="px-3 py-1.5" colSpan={2}><span className="font-sans pl-4 text-[10px]">Credit bareme Cl.1a</span></td>
                 <td colSpan={2}></td>
@@ -182,19 +182,26 @@ export default function PayslipPreview() {
               </tr>
             )}
             <tr className="border-b border-slate-100">
-              <td className="px-3 py-1.5" colSpan={2}><span className="font-sans text-red-600 pl-4 font-semibold">Impot retenu</span></td>
+              <td className="px-3 py-1.5" colSpan={2}><span className="font-sans text-slate-600 pl-4 font-semibold">Impot avant credits</span></td>
               <td colSpan={2}></td>
-              <td className="px-3 py-1.5 text-right text-red-600 font-semibold">-{fmtLU(results.impots)}</td>
+              <td className="px-3 py-1.5 text-right text-slate-600 font-semibold">-{fmtLU(results.impots)}</td>
             </tr>
 
-            {/* Credits externes */}
+            {/* Credits externes (réduisent l'impôt) */}
             {results.CIS > 0 && <CreditRow2 label="Credit d'impots (CIS)" amount={results.CIS} />}
             {results.CIP > 0 && <CreditRow2 label="Credit d'impots (CIP)" amount={results.CIP} />}
             {results.CIM > 0 && <CreditRow2 label="Credit d'impots (CIM)" amount={results.CIM} />}
             {results.CISSM > 0 && <CreditRow2 label="Credit d'impots (CISSM)" amount={results.CISSM} />}
             {results.CICO2 > 0 && <CreditRow2 label="Credit d'impots (CI-CO2)" amount={results.CICO2} />}
 
-            {/* Net */}
+            {/* Impot retenu = max(0, impots - credits) */}
+            <tr className="border-b border-slate-200">
+              <td className="px-3 py-1.5" colSpan={2}><span className="font-sans text-red-600 pl-4 font-bold">Impot retenu</span></td>
+              <td colSpan={2}></td>
+              <td className="px-3 py-1.5 text-right text-red-600 font-bold">-{fmtLU(results.impotRetenu)}</td>
+            </tr>
+
+            {/* Net = totalImposable - impotRetenu */}
             <tr className="border-b border-slate-300 bg-slate-50">
               <td colSpan={3}></td>
               <td className="px-3 py-1.5 text-right font-sans font-bold text-slate-700">Net</td>
