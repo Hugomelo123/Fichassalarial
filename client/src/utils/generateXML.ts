@@ -1,4 +1,4 @@
-import { PayrollResult } from "./calculations";
+import type { PayrollResult } from "./calculations";
 
 interface EmployeeData {
   name: string;
@@ -21,12 +21,11 @@ function escapeXml(str: string): string {
 }
 
 export const generateCCSSXML = (
-  employee: EmployeeData, 
+  employee: EmployeeData,
   company: CompanyData,
   results: PayrollResult,
-  period: string = "2026-02"
+  period: string = "2026-02",
 ) => {
-  const grossSalary = results.totalImposable + results.totalSocial;
   const dateCreated = new Date().toISOString().split("T")[0];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -40,16 +39,22 @@ export const generateCCSSXML = (
     <Employee>
       <SSN>${escapeXml(employee.ssn || "UNKNOWN")}</SSN>
       <Name>${escapeXml(employee.name || "UNKNOWN")}</Name>
+      <Hours>
+        <Normal>${results.heuresNormales}</Normal>
+        <SickLeave>${results.heuresMaladie}</SickLeave>
+        <Total>${results.heuresTotales}</Total>
+      </Hours>
       <SalaryData>
-        <GrossSalary>${grossSalary.toFixed(2)}</GrossSalary>
+        <GrossSalary>${results.salaryBrut.toFixed(2)}</GrossSalary>
         <TaxableIncome>${results.totalImposable.toFixed(2)}</TaxableIncome>
         <SocialContributions>
-          <HealthCare>${(grossSalary * 0.028).toFixed(2)}</HealthCare>
-          <HealthCash>${(grossSalary * 0.0025).toFixed(2)}</HealthCash>
-          <Pension>${(grossSalary * 0.08).toFixed(2)}</Pension>
+          <HealthCare>${results.maladieSoins.toFixed(2)}</HealthCare>
+          <HealthCash>${results.maladieEspeces.toFixed(2)}</HealthCash>
+          <Pension>${results.pension.toFixed(2)}</Pension>
           <Dependency>${results.dependance.toFixed(2)}</Dependency>
         </SocialContributions>
         <TaxWithheld>${results.impots.toFixed(2)}</TaxWithheld>
+        <TaxCredit>${results.credit.toFixed(2)}</TaxCredit>
         <NetSalary>${results.net.toFixed(2)}</NetSalary>
       </SalaryData>
     </Employee>

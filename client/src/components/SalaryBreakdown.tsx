@@ -1,80 +1,85 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calculator, ArrowRight } from "lucide-react";
 import { usePayrollStore } from "@/store/usePayrollStore";
+import { TrendingDown, TrendingUp, Minus } from "lucide-react";
 
 export default function SalaryBreakdown() {
-  const { results, salaryBrut } = usePayrollStore();
+  const { results } = usePayrollStore();
 
-  if (!results) {
+  if (!results || results.salaryBrut === 0) {
     return (
-      <Card className="bg-slate-50 border-dashed border-2">
-        <CardContent className="h-40 flex flex-col items-center justify-center text-muted-foreground">
-          <Calculator className="h-8 w-8 mb-2 opacity-50" />
-          <p>Entrez un salaire brut pour voir le détail.</p>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 py-10 text-center text-slate-400">
+        <Minus className="mb-2 h-6 w-6 opacity-40" />
+        <p className="text-xs">Renseignez un salaire pour voir le detail.</p>
+      </div>
     );
   }
 
+  const retentionRate =
+    results.salaryBrut > 0
+      ? ((results.salaryBrut - results.net) / results.salaryBrut) * 100
+      : 0;
+
+  const rows = [
+    { label: "Salaire brut", value: results.salaryBrut, type: "neutral" as const },
+    { label: "Maladie / Soins (2.80 %)", value: -results.maladieSoins, type: "deduction" as const },
+    { label: "Maladie / Especes (0.25 %)", value: -results.maladieEspeces, type: "deduction" as const },
+    { label: "Pension (8.00 %)", value: -results.pension, type: "deduction" as const },
+    { label: "Dependance (1.40 %)", value: -results.dependance, type: "deduction" as const },
+    { label: "Impot retenu", value: -results.impots, type: "deduction" as const },
+    { label: "Credit d'impot (CIS)", value: results.credit, type: "addition" as const },
+  ];
+
   return (
-    <Card className="shadow-lg border-t-4 border-t-green-600">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex justify-between items-center">
-          <span>Résultat Net</span>
-          <span className="text-2xl font-bold text-green-600 font-mono">
-            € {results.net.toFixed(2)}
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between items-center font-medium">
-            <span>Salaire Brut</span>
-            <span>€ {salaryBrut.toFixed(2)}</span>
+    <div className="space-y-3">
+      <div className="space-y-0.5">
+        {rows.map((row) => (
+          <div
+            key={row.label}
+            className="flex items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-slate-50"
+          >
+            <span className="text-slate-600">{row.label}</span>
+            <span
+              className={`font-mono font-medium ${
+                row.type === "deduction"
+                  ? "text-red-500"
+                  : row.type === "addition"
+                    ? "text-emerald-600"
+                    : "text-slate-800"
+              }`}
+            >
+              {row.type === "deduction" && "- "}
+              {row.type === "addition" && "+ "}
+              {Math.abs(row.value).toFixed(2)}
+            </span>
           </div>
-          
-          <div className="h-px bg-slate-200 my-2" />
-          
-          <div className="space-y-1 text-slate-600">
-            <div className="flex justify-between items-center text-xs">
-              <span>Cotisations Sociales (Employee)</span>
-              <span className="text-red-500">- € {results.cotisations.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span>Assurance Dépendance (1.4%)</span>
-              <span className="text-red-500">- € {results.dependance.toFixed(2)}</span>
-            </div>
-          </div>
+        ))}
+      </div>
 
-          <div className="flex justify-between items-center font-medium pt-2 text-slate-700 bg-slate-50 p-2 rounded">
-            <span>Total Imposable</span>
-            <span>€ {results.totalImposable.toFixed(2)}</span>
+      {/* Net result */}
+      <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-4 text-white shadow-lg shadow-emerald-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-100">
+              Net a payer
+            </p>
+            <p className="mt-0.5 font-mono text-2xl font-bold">
+              {results.net.toFixed(2)}
+              <span className="ml-1 text-sm font-normal text-emerald-200">EUR</span>
+            </p>
           </div>
-
-          <div className="space-y-1 text-slate-600 pt-2">
-             <div className="flex justify-between items-center text-xs">
-              <span>Impôts (Retenue à la source)</span>
-              <span className="text-red-500">- € {results.impots.toFixed(2)}</span>
-            </div>
-             <div className="flex justify-between items-center text-xs">
-              <span>Crédit d'impôt (CIS/CISSM)</span>
-              <span className="text-green-600">+ € {results.credit.toFixed(2)}</span>
+          <div className="text-right">
+            <div className="flex items-center gap-1 text-emerald-200">
+              {retentionRate > 20 ? (
+                <TrendingDown className="h-3.5 w-3.5" />
+              ) : (
+                <TrendingUp className="h-3.5 w-3.5" />
+              )}
+              <span className="text-[10px] font-medium">
+                {retentionRate.toFixed(1)} % retenu
+              </span>
             </div>
           </div>
         </div>
-
-        <div className="bg-green-50 p-4 rounded-lg mt-4 border border-green-100">
-          <div className="flex justify-between items-center text-green-800 font-bold">
-            <span>NET À PAYER</span>
-            <span className="text-xl">€ {results.net.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
-            <span>Virement SEPA</span>
-            <ArrowRight className="h-3 w-3" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

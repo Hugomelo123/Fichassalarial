@@ -1,5 +1,3 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2 } from "lucide-react";
@@ -8,58 +6,53 @@ import { usePayrollStore } from "@/store/usePayrollStore";
 export default function CompanyForm() {
   const { company, setCompany } = usePayrollStore();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCompany({ ...company, [e.target.name]: e.target.value });
-  };
-
   return (
-    <Card className="shadow-sm border-l-4 border-l-primary">
-      <CardHeader className="flex flex-row items-center gap-4 pb-2">
-        <div className="p-2 bg-primary/10 rounded-full">
-          <Building2 className="h-5 w-5 text-primary" />
-        </div>
+    <section className="space-y-4">
+      <div className="flex items-center gap-2 text-slate-500">
+        <Building2 className="h-4 w-4" />
+        <h3 className="text-xs font-semibold uppercase tracking-wider">Employeur</h3>
+      </div>
+
+      <div className="grid gap-3">
         <div>
-          <CardTitle className="text-lg">Données Entreprise</CardTitle>
-          <p className="text-sm text-muted-foreground">Informations de l'employeur</p>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4 pt-4">
-        <div className="grid gap-2">
-          <Label htmlFor="companyName">Nom de la Société</Label>
-          <Input 
-            id="companyName" 
-            name="name" 
-            value={company.name} 
-            onChange={handleChange} 
-            placeholder="Ex: LuxCorp S.A." 
-            className="bg-background"
-          />
-        </div>
-        
-        <div className="grid gap-2">
-          <Label htmlFor="companyAddress">Adresse Complète</Label>
-          <Input 
-            id="companyAddress" 
-            name="address" 
-            value={company.address} 
-            onChange={handleChange} 
-            placeholder="Rue, CP, Ville" 
-            className="bg-background"
+          <Label htmlFor="companyName" className="text-[11px] font-medium text-slate-500">
+            Raison sociale
+          </Label>
+          <Input
+            id="companyName"
+            value={company.name}
+            onChange={(e) => setCompany({ name: e.target.value })}
+            placeholder="Ex: LuxCorp S.A."
+            className="mt-1 h-9 bg-slate-50/50 text-sm placeholder:text-slate-300"
           />
         </div>
 
-        <div className="grid gap-2">
-          <Label htmlFor="companyTva">N° TVA / Matricule</Label>
-          <Input 
-            id="companyTva" 
-            name="tva" 
-            value={company.tva} 
-            onChange={handleChange} 
-            placeholder="LU..." 
-            className="bg-background font-mono"
+        <div>
+          <Label htmlFor="companyAddress" className="text-[11px] font-medium text-slate-500">
+            Adresse
+          </Label>
+          <Input
+            id="companyAddress"
+            value={company.address}
+            onChange={(e) => setCompany({ address: e.target.value })}
+            placeholder="2, Rue du Fort Thüngen, L-1499 Luxembourg"
+            className="mt-1 h-9 bg-slate-50/50 text-sm placeholder:text-slate-300"
           />
         </div>
-      </CardContent>
-    </Card>
+
+        <div>
+          <Label htmlFor="companyTva" className="text-[11px] font-medium text-slate-500">
+            N° TVA / Matricule
+          </Label>
+          <Input
+            id="companyTva"
+            value={company.tva}
+            onChange={(e) => setCompany({ tva: e.target.value })}
+            placeholder="LU12345678"
+            className="mt-1 h-9 bg-slate-50/50 font-mono text-sm placeholder:text-slate-300"
+          />
+        </div>
+      </div>
+    </section>
   );
 }

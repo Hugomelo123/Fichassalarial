@@ -1,30 +1,67 @@
 import { create } from "zustand";
-import { calculateLuxSalary, PayrollResult } from "../utils/calculations";
+import {
+  calculateLuxSalary,
+  PayrollResult,
+  STANDARD_MONTHLY_HOURS,
+} from "../utils/calculations";
 
-interface EmployeeData {
+export interface EmployeeData {
   name: string;
   role: string;
   ssn: string;
   entryDate: string;
-  taxClass?: string;
+  taxClass: string;
 }
 
-interface CompanyData {
+export interface CompanyData {
   name: string;
   address: string;
   tva: string;
 }
 
+export type SalaryMode = "monthly" | "hourly";
+
 interface PayrollState {
+  // --- Data ---
   employee: EmployeeData;
   company: CompanyData;
-  salaryBrut: number;
+
+  // Salary
+  salaryMode: SalaryMode;
+  monthlyGross: number;
+  hourlyRate: number;
+  hoursWorked: number;
+
+  // Absences
+  maladieHours: number;
+
+  // Period
+  period: string; // e.g. "2026-02"
+
+  // Results
   results: PayrollResult | null;
 
-  setEmployee: (data: EmployeeData) => void;
-  setCompany: (data: CompanyData) => void;
-  setSalary: (salaryBrut: number) => void;
-  calculate: () => void;
+  // --- Actions ---
+  setEmployee: (data: Partial<EmployeeData>) => void;
+  setCompany: (data: Partial<CompanyData>) => void;
+  setSalaryMode: (mode: SalaryMode) => void;
+  setMonthlyGross: (v: number) => void;
+  setHourlyRate: (v: number) => void;
+  setHoursWorked: (v: number) => void;
+  setMaladieHours: (v: number) => void;
+  setPeriod: (v: string) => void;
+  recalculate: () => void;
+}
+
+function buildInput(state: PayrollState) {
+  return {
+    salaryMode: state.salaryMode,
+    monthlyGross: state.monthlyGross,
+    hourlyRate: state.hourlyRate,
+    hoursWorked: state.hoursWorked,
+    maladieHours: state.maladieHours,
+    taxClass: state.employee.taxClass,
+  };
 }
 
 export const usePayrollStore = create<PayrollState>((set, get) => ({
@@ -33,27 +70,66 @@ export const usePayrollStore = create<PayrollState>((set, get) => ({
     role: "",
     ssn: "",
     entryDate: "",
-    taxClass: "1"
+    taxClass: "1",
   },
   company: {
-    name: "LuxCorp S.A.",
-    address: "2, Rue du Fort Thüngen, L-1499 Luxembourg",
-    tva: "LU12345678"
+    name: "",
+    address: "",
+    tva: "",
   },
-  salaryBrut: 0,
+
+  salaryMode: "monthly",
+  monthlyGross: 0,
+  hourlyRate: 0,
+  hoursWorked: STANDARD_MONTHLY_HOURS,
+  maladieHours: 0,
+  period: "2026-02",
   results: null,
 
-  setEmployee: (data) => set({ employee: data }),
-  setCompany: (data) => set({ company: data }),
-  setSalary: (salaryBrut) => {
-    set({ salaryBrut });
-    // Auto-calculate when salary changes
-    const results = calculateLuxSalary(salaryBrut);
+  setEmployee: (data) => {
+    const employee = { ...get().employee, ...data };
+    set({ employee });
+    // Recalculate if tax class changed
+    const results = calculateLuxSalary({ ...buildInput({ ...get(), employee }), taxClass: employee.taxClass });
     set({ results });
   },
-  calculate: () => {
-    const { salaryBrut } = get();
-    const results = calculateLuxSalary(salaryBrut);
-    set({ results });
+
+  setCompany: (data) => set({ company: { ...get().company, ...data } }),
+
+  setSalaryMode: (salaryMode) => {
+    set({ salaryMode });
+    const state = get();
+    set({ results: calculateLuxSalary(buildInput({ ...state, salaryMode })) });
+  },
+
+  setMonthlyGross: (monthlyGross) => {
+    set({ monthlyGross });
+    const state = get();
+    set({ results: calculateLuxSalary(buildInput({ ...state, monthlyGross })) });
+  },
+
+  setHourlyRate: (hourlyRate) => {
+    set({ hourlyRate });
+    const state = get();
+    set({ results: calculateLuxSalary(buildInput({ ...state, hourlyRate })) });
+  },
+
+  setHoursWorked: (hoursWorked) => {
+    set({ hoursWorked });
+    const state = get();
+    set({ results: calculateLuxSalary(buildInput({ ...state, hoursWorked })) });
+  },
+
+  setMaladieHours: (maladieHours) => {
+    set({ maladieHours });
+    const state = get();
+    set({ results: calculateLuxSalary(buildInput({ ...state, maladieHours })) });
+  },
+
+  setPeriod: (period) => set({ period }),
+
+  recalculate: () => {
+    const state = get();
+    set({ results: calculateLuxSalary(buildInput(state)) });
   },
 }));

@@ -1,67 +1,49 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePayrollStore } from "@/store/usePayrollStore";
-import { Badge } from "@/components/ui/badge";
+import { CalendarDays } from "lucide-react";
 
 export default function AnnualSummary() {
-  const { results, salaryBrut } = usePayrollStore();
+  const { results } = usePayrollStore();
 
-  if (!results || salaryBrut === 0) return null;
+  if (!results || results.salaryBrut === 0) return null;
 
-  // Projection simple x12 (sans 13e mois pour simplifier la démo, ou ajustable)
-  const annualBrut = salaryBrut * 12;
-  const annualNet = results.net * 12;
-  const annualTax = results.impots * 12;
-  const annualSocial = results.totalSocial * 12;
+  const annual = {
+    brut: results.salaryBrut * 12,
+    social: results.totalSocial * 12,
+    tax: results.impots * 12,
+    net: results.net * 12,
+  };
+
+  const items = [
+    { label: "Brut annuel", value: annual.brut, cls: "text-slate-800" },
+    { label: "Cotisations", value: -annual.social, cls: "text-red-500" },
+    { label: "Impots", value: -annual.tax, cls: "text-red-500" },
+    { label: "Net annuel", value: annual.net, cls: "text-emerald-700 font-bold" },
+  ];
 
   return (
-    <Card className="mt-6 shadow-sm">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Projection Annuelle (2026)</CardTitle>
-            <Badge variant="secondary">Estimatif x12</Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Catégorie</TableHead>
-              <TableHead className="text-right">Montant Annuel</TableHead>
-              <TableHead className="text-right hidden sm:table-cell">% du Brut</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow>
-              <TableCell className="font-medium">Salaire Brut Total</TableCell>
-              <TableCell className="text-right">€ {annualBrut.toLocaleString('fr-LU', {minimumFractionDigits: 2})}</TableCell>
-              <TableCell className="text-right hidden sm:table-cell">100%</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="text-slate-500">Cotisations Sociales</TableCell>
-              <TableCell className="text-right text-red-500">- € {annualSocial.toLocaleString('fr-LU', {minimumFractionDigits: 2})}</TableCell>
-              <TableCell className="text-right hidden sm:table-cell text-slate-400">
-                {((annualSocial / annualBrut) * 100).toFixed(1)}%
-              </TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="text-slate-500">Impôts sur Revenu</TableCell>
-              <TableCell className="text-right text-red-500">- € {annualTax.toLocaleString('fr-LU', {minimumFractionDigits: 2})}</TableCell>
-              <TableCell className="text-right hidden sm:table-cell text-slate-400">
-                {((annualTax / annualBrut) * 100).toFixed(1)}%
-              </TableCell>
-            </TableRow>
-            <TableRow className="bg-green-50/50 font-bold">
-              <TableCell className="text-green-900">Net Annuel Poche</TableCell>
-              <TableCell className="text-right text-green-700">€ {annualNet.toLocaleString('fr-LU', {minimumFractionDigits: 2})}</TableCell>
-              <TableCell className="text-right hidden sm:table-cell text-green-600">
-                {((annualNet / annualBrut) * 100).toFixed(1)}%
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <div className="rounded-xl border bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center gap-2">
+        <CalendarDays className="h-4 w-4 text-slate-400" />
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          Projection annuelle (x12)
+        </h3>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        {items.map((item) => (
+          <div key={item.label} className="rounded-lg bg-slate-50 p-3 text-center">
+            <p className="text-[10px] text-slate-400">{item.label}</p>
+            <p className={`mt-1 font-mono text-sm ${item.cls}`}>
+              {item.value < 0 && "- "}
+              {Math.abs(item.value).toLocaleString("fr-LU", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              })}
+              <span className="ml-0.5 text-[10px] font-normal text-slate-400">EUR</span>
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

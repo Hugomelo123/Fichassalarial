@@ -6,36 +6,37 @@
 @theme inline {
   --font-sans: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  
-  --color-background: hsl(210 20% 98%);
-  --color-foreground: hsl(220 15% 15%);
-  
+
+  /* --- Refined accounting palette --- */
+  --color-background: hsl(220 20% 97%);
+  --color-foreground: hsl(222 47% 11%);
+
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(220 15% 15%);
-  
+  --color-card-foreground: hsl(222 47% 11%);
+
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(220 15% 15%);
-  
-  --color-primary: hsl(220 80% 50%); /* Professional Blue */
+  --color-popover-foreground: hsl(222 47% 11%);
+
+  --color-primary: hsl(234 89% 60%);
   --color-primary-foreground: hsl(0 0% 100%);
-  
-  --color-secondary: hsl(210 20% 90%);
-  --color-secondary-foreground: hsl(220 15% 15%);
-  
-  --color-muted: hsl(210 20% 96%);
-  --color-muted-foreground: hsl(215 15% 45%);
-  
-  --color-accent: hsl(220 80% 95%);
-  --color-accent-foreground: hsl(220 80% 40%);
-  
-  --color-destructive: hsl(0 80% 60%);
+
+  --color-secondary: hsl(220 14% 94%);
+  --color-secondary-foreground: hsl(222 47% 11%);
+
+  --color-muted: hsl(220 14% 96%);
+  --color-muted-foreground: hsl(220 9% 46%);
+
+  --color-accent: hsl(234 89% 96%);
+  --color-accent-foreground: hsl(234 89% 50%);
+
+  --color-destructive: hsl(0 72% 51%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  
-  --color-border: hsl(220 15% 90%);
-  --color-input: hsl(220 15% 90%);
-  --color-ring: hsl(220 80% 50%);
-  
-  --radius: 0.5rem;
+
+  --color-border: hsl(220 13% 91%);
+  --color-input: hsl(220 13% 91%);
+  --color-ring: hsl(234 89% 60%);
+
+  --radius: 0.625rem;
 }
 
 @layer base {
@@ -44,5 +45,12 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Smooth transitions for interactive elements */
+@layer utilities {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-sm border border-white/60 shadow-sm;
   }
 }

@@ -1,40 +1,29 @@
-import React from "react";
-import { LayoutDashboard, FileText, Settings, UserCircle } from "lucide-react";
+import { Calculator } from "lucide-react";
 
 export default function Navbar() {
   return (
-    <nav className="border-b bg-white sticky top-0 z-50 shadow-sm">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="bg-blue-700 text-white p-1.5 rounded-md font-bold text-xl tracking-tighter">
-            LP
+    <nav className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-14 items-center justify-between">
+          {/* Brand */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 shadow-sm shadow-indigo-200">
+              <Calculator className="h-4 w-4 text-white" strokeWidth={2.5} />
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[15px] font-semibold tracking-tight text-slate-900">
+                LuxPayroll
+              </span>
+              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-600">
+                2026
+              </span>
+            </div>
           </div>
-          <span className="font-bold text-xl text-slate-900 tracking-tight">LuxPayroll <span className="text-blue-600">2026</span></span>
-        </div>
 
-        <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
-          <a href="#" className="flex items-center gap-2 hover:text-blue-600 transition-colors">
-            <LayoutDashboard className="h-4 w-4" />
-            Simulateur
-          </a>
-          <a href="#" className="flex items-center gap-2 hover:text-blue-600 transition-colors">
-            <FileText className="h-4 w-4" />
-            Mes Fiches
-          </a>
-          <a href="#" className="flex items-center gap-2 hover:text-blue-600 transition-colors">
-            <Settings className="h-4 w-4" />
-            Paramètres
-          </a>
-        </div>
-
-        <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-                <div className="text-xs font-bold text-slate-900">Admin RH</div>
-                <div className="text-[10px] text-slate-500">LuxCorp S.A.</div>
-            </div>
-            <div className="h-8 w-8 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200">
-                <UserCircle className="h-5 w-5 text-slate-400" />
-            </div>
+          {/* Tagline */}
+          <p className="hidden text-xs text-slate-400 sm:block">
+            Simulateur de fiches de paie &middot; Grand-Duche de Luxembourg
+          </p>
         </div>
       </div>
     </nav>
